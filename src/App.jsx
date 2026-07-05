@@ -38,6 +38,7 @@ export default function App() {
   const workouts = useStore((s) => s.workouts);
   const renameWorkout = useStore((s) => s.renameWorkout);
   const saveWorkout = useStore((s) => s.saveWorkout);
+  const loadWorkout = useStore((s) => s.loadWorkout);
 
   const contentRef = useRef(null);
 
@@ -79,6 +80,22 @@ export default function App() {
     }
     saveWorkout(activeWorkoutName);
     if (gistConfig?.gistId && gistConfig?.token) saveNow();
+  }
+
+  function fitToScreen(sec) {
+    if (!sec || !contentRef.current) return;
+    const availableWidth = contentRef.current.clientWidth - 32;
+    setPxPerSecond(availableWidth / (sec * 1.1));
+  }
+
+  function handleLoadWorkout(name) {
+    loadWorkout(name);
+    const workout = workouts[name];
+    if (workout?.blocks?.length) {
+      const sec = workout.blocks.reduce((s, b) => s + b.duration, 0);
+      // Use rAF so the DOM has settled after the state update before measuring
+      requestAnimationFrame(() => fitToScreen(sec));
+    }
   }
 
   const sliderLabel = { fontSize: 11, color: 'rgba(255,255,255,0.55)', display: 'flex', alignItems: 'center', gap: 6 };
@@ -147,11 +164,8 @@ export default function App() {
           <input type="range" min={0} max={100} value={Math.round(Math.log(pxPerSecond / 2) / Math.log(40) * 100)}
             onChange={(e) => setPxPerSecond(2 * Math.pow(40, Number(e.target.value) / 100))} style={{ width: 80 }} />
           <button
-            onClick={() => {
-              if (!totalSec || !contentRef.current) return;
-              const availableWidth = contentRef.current.clientWidth - 32; // 16px padding each side
-              setPxPerSecond(availableWidth / totalSec);
-            }}
+            onClick={() => fitToScreen(totalSec)}
+
             title="Fit to screen"
             style={{ background: 'none', border: '1px solid rgba(255,255,255,0.18)', borderRadius: 4, cursor: 'pointer', color: 'rgba(255,255,255,0.55)', fontSize: 12, padding: '1px 6px', lineHeight: 1.4 }}
           >⟷</button>
@@ -217,7 +231,7 @@ export default function App() {
 
       {playState !== 'idle' && <PlaybackOverlay playback={playback} />}
       {showGist && <GistSetupModal onClose={() => setShowGist(false)} />}
-      {showManager && <WorkoutManagerModal onClose={() => setShowManager(false)} />}
+      {showManager && <WorkoutManagerModal onClose={() => setShowManager(false)} onLoad={handleLoadWorkout} />}
       {showCode && <CodeEditorModal onClose={() => setShowCode(false)} />}
     </div>
   );
