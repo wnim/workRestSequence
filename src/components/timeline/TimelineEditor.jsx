@@ -10,7 +10,7 @@ import {
 import { SortableContext, horizontalListSortingStrategy } from '@dnd-kit/sortable';
 import useStore from '../../store/workoutStore';
 import { blockStartTime, blocksToTotalDuration } from '../../utils/time';
-import { TIMELINE_CANVAS_HEIGHT, BLOCK_TOP, BLOCK_HEIGHT } from '../../utils/constants';
+import { TIMELINE_CANVAS_HEIGHT, BLOCK_TOP, BLOCK_HEIGHT, MULTI_DRAG_SCALE } from '../../utils/constants';
 import { BlockItem } from './BlockItem';
 import { WaveformSVG } from './WaveformSVG';
 import { BlockEditModal } from '../modals/BlockEditModal';
@@ -61,6 +61,7 @@ export function TimelineEditor() {
   const [dragActiveId, setDragActiveId] = useState(null);
   const [dragDeltaX, setDragDeltaX] = useState(0);
   const [dragDeltaY, setDragDeltaY] = useState(0);
+  const [suppressTransition, setSuppressTransition] = useState(false);
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 6 } })
@@ -76,8 +77,10 @@ export function TimelineEditor() {
     const totalSelectedWidth = blocks.reduce((sum, b, i) => (
       selectedIds.has(b.id) ? sum + (rects[i]?.width ?? 0) : sum
     ), 0);
+    // Use the visually-scaled width so resting blocks open a gap that matches
+    // the shrunk group size; the gap expands to full size on drop.
     const fakeRects = rects.map((r, i) =>
-      i === activeIndex ? { ...r, width: totalSelectedWidth } : r
+      i === activeIndex ? { ...r, width: totalSelectedWidth * MULTI_DRAG_SCALE } : r
     );
     return horizontalListSortingStrategy({ ...args, rects: fakeRects });
   }, [dragActiveId, selectedIds, blocks]);
@@ -99,6 +102,9 @@ export function TimelineEditor() {
     if (!active || !over || active.id === over.id) return;
 
     if (selectedIds.has(active.id) && selectedIds.size > 1) {
+      // Snap all blocks to final positions this frame; only the inner scale animates.
+      setSuppressTransition(true);
+      requestAnimationFrame(() => setSuppressTransition(false));
       // Multi-drag: move the whole selection together
       const selected = blocks.filter((b) => selectedIds.has(b.id));
       const rest = blocks.filter((b) => !selectedIds.has(b.id));
@@ -224,6 +230,7 @@ export function TimelineEditor() {
                   dragActiveId={dragActiveId}
                   dragDeltaX={dragDeltaX}
                   dragDeltaY={dragDeltaY}
+                  suppressTransition={suppressTransition}
                 />
               ))}
             </SortableContext>
