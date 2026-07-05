@@ -151,7 +151,7 @@ const useStore = create((set, get) => ({
 
   setBlocks: (blocks) => set((s) => ({ ...pushPast(s, s.blocks), blocks })),
 
-  setPxPerSecond: (px) => set({ pxPerSecond: Math.max(5, Math.min(100, px)) }),
+  setPxPerSecond: (px) => set({ pxPerSecond: Math.max(2, Math.min(100, px)) }),
   setResizeStep: (s) => set({ resizeStep: Math.max(1, Math.min(60, s)) }),
 
   setPlayState: (playState) => set({ playState }),

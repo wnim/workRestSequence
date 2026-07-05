@@ -10,27 +10,21 @@ import { WorkoutManagerModal } from './components/modals/WorkoutManagerModal';
 import { Button } from './components/ui/button';
 import { blocksToTotalDuration, msToDisplay } from './utils/time';
 
-function SyncBadge({ status, onClick }) {
-  const map = {
-    idle: { label: '● Saved', color: 'rgba(255,255,255,0.4)' },
-    loading: { label: '↓ Loading…', color: 'oklch(0.72 0.15 200)' },
-    saving: { label: '↑ Saving…', color: 'oklch(0.72 0.15 200)' },
-    saved: { label: '✓ Saved', color: 'oklch(0.72 0.15 150)' },
-    error: { label: '⚠ Error', color: 'oklch(0.72 0.22 35)' },
-    disconnected: { label: '○ Not connected', color: 'rgba(255,255,255,0.35)' },
-  };
-  const { label, color } = map[status] ?? map.disconnected;
-  return (
-    <span onClick={onClick} style={{ fontSize: 11, color, cursor: status === 'error' ? 'pointer' : 'default', fontFamily: 'monospace' }}>
-      {label}
-    </span>
-  );
-}
+const SAVE_STATES = {
+  dirty:        { label: 'Save',      bg: 'oklch(0.55 0.18 250)',          color: 'white',                    cursor: 'pointer' },
+  error:        { label: 'Retry Save',bg: 'oklch(0.50 0.20 25)',           color: 'white',                    cursor: 'pointer' },
+  saving:       { label: 'Saving…',   bg: 'rgba(255,255,255,0.06)',        color: 'rgba(255,255,255,0.4)',     cursor: 'default'  },
+  saved:        { label: '✓ Saved',   bg: 'oklch(0.45 0.12 150 / 0.4)',   color: 'oklch(0.75 0.15 150)',     cursor: 'default'  },
+  idle:         { label: 'Saved',     bg: 'rgba(255,255,255,0.06)',        color: 'rgba(255,255,255,0.3)',     cursor: 'default'  },
+  loading:      { label: 'Loading…',  bg: 'rgba(255,255,255,0.06)',        color: 'rgba(255,255,255,0.3)',     cursor: 'default'  },
+  disconnected: { label: 'Save',      bg: 'rgba(255,255,255,0.06)',        color: 'rgba(255,255,255,0.3)',     cursor: 'pointer'  },
+};
 
 export default function App() {
-  useGistSync();
+  const { saveNow } = useGistSync();
   const blocks = useStore((s) => s.blocks);
   const addBlock = useStore((s) => s.addBlock);
+  const setBlocks = useStore((s) => s.setBlocks);
   const pxPerSecond = useStore((s) => s.pxPerSecond);
   const setPxPerSecond = useStore((s) => s.setPxPerSecond);
   const resizeStep = useStore((s) => s.resizeStep);
@@ -52,8 +46,14 @@ export default function App() {
   });
 
   const totalSec = blocksToTotalDuration(blocks);
+  const effectiveStatus = !gistConfig?.gistId ? 'disconnected' : syncStatus;
+  const saveState = SAVE_STATES[effectiveStatus] ?? SAVE_STATES.idle;
+  const canSave = effectiveStatus === 'dirty' || effectiveStatus === 'error';
 
-  const badgeStatus = !gistConfig?.gistId ? 'disconnected' : syncStatus;
+  function handleSave() {
+    if (effectiveStatus === 'disconnected') { setShowGist(true); return; }
+    if (canSave) saveNow();
+  }
 
   const sliderLabel = { fontSize: 11, color: 'rgba(255,255,255,0.55)', display: 'flex', alignItems: 'center', gap: 6 };
   const btnBase = { background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.18)', color: 'rgba(255,255,255,0.85)', fontSize: 12, height: 30, padding: '0 12px' };
@@ -86,11 +86,25 @@ export default function App() {
 
         <label style={sliderLabel}>
           Zoom
-          <input type="range" min={5} max={80} value={pxPerSecond}
+          <input type="range" min={2} max={80} value={pxPerSecond}
             onChange={(e) => setPxPerSecond(Number(e.target.value))} style={{ width: 80 }} />
         </label>
 
-        <SyncBadge status={badgeStatus} onClick={() => { if (badgeStatus === 'error' || !gistConfig?.gistId) setShowGist(true); }} />
+        <Button
+          onClick={handleSave}
+          disabled={syncStatus === 'saving' || syncStatus === 'loading'}
+          style={{
+            fontSize: 12, height: 30, padding: '0 16px',
+            background: saveState.bg,
+            color: saveState.color,
+            border: canSave ? '1px solid rgba(255,255,255,0.25)' : '1px solid rgba(255,255,255,0.1)',
+            cursor: saveState.cursor,
+            transition: 'background 0.3s, color 0.3s',
+            fontWeight: canSave ? 600 : 400,
+          }}
+        >
+          {saveState.label}
+        </Button>
 
         <Button variant="outline" style={btnBase} onClick={() => setShowGist(true)}>
           {gistConfig?.gistId ? 'Gist ✓' : 'Gist Setup'}
@@ -122,6 +136,7 @@ export default function App() {
         }}>
           <Button onClick={() => addBlock('work')} style={{ background: 'oklch(0.58 0.20 35)', color: 'white', fontSize: 12, height: 30, padding: '0 12px' }}>+ Work</Button>
           <Button onClick={() => addBlock('rest')} style={{ background: 'oklch(0.32 0.06 250)', color: 'rgba(255,255,255,0.85)', border: '1px solid rgba(255,255,255,0.2)', fontSize: 12, height: 30, padding: '0 12px' }}>+ Rest</Button>
+          <Button onClick={() => setBlocks([])} style={{ fontSize: 12, height: 30, padding: '0 12px', background: 'transparent', color: 'rgba(255,255,255,0.5)', border: '1px solid rgba(255,255,255,0.18)' }}>Clear</Button>
           <div style={{ flex: 1 }} />
           <Button
             onClick={playback.play}

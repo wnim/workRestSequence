@@ -444,9 +444,9 @@ describe('setPxPerSecond', () => {
     expect(useStore.getState().pxPerSecond).toBe(40);
   });
 
-  it('clamps minimum to 5', () => {
+  it('clamps minimum to 2', () => {
     useStore.getState().setPxPerSecond(1);
-    expect(useStore.getState().pxPerSecond).toBe(5);
+    expect(useStore.getState().pxPerSecond).toBe(2);
   });
 
   it('clamps maximum to 100', () => {

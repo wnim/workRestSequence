@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useCallback } from 'react';
 import useStore from '../store/workoutStore';
 import { fetchGistData, saveGistData, saveGistDataKeepalive } from '../utils/gist';
 import { LS_WORKOUTS, LS_SAVE_PENDING, GIST_FILENAME } from '../utils/constants';
@@ -11,8 +11,10 @@ export function useGistSync() {
 
   const lastSyncedRef = useRef(null);
   const saveTimerRef = useRef(null);
+  const workoutsRef = useRef(workouts);
+  workoutsRef.current = workouts;
 
-  // 1. Mirror workouts to localStorage
+  // 1. Mirror workouts to localStorage always
   useEffect(() => {
     localStorage.setItem(LS_WORKOUTS, JSON.stringify(workouts));
   }, [workouts]);
@@ -38,26 +40,36 @@ export function useGistSync() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // 3. Debounced Gist save (60s) when workouts change
+  const doSave = useCallback((serialized) => {
+    setSyncStatus('saving');
+    return saveGistData(gistConfig.gistId, gistConfig.token, GIST_FILENAME, { workouts: JSON.parse(serialized) })
+      .then(() => {
+        lastSyncedRef.current = serialized;
+        setSyncStatus('saved');
+        setTimeout(() => setSyncStatus('idle'), 2000);
+      })
+      .catch(() => setSyncStatus('error'));
+  }, [gistConfig, setSyncStatus]);
+
+  // 3. Mark dirty immediately on change; debounce the actual Gist save
   useEffect(() => {
     if (!gistConfig?.gistId || !gistConfig?.token) return;
     const serialized = JSON.stringify(workouts);
     if (serialized === lastSyncedRef.current) return;
+    setSyncStatus('dirty');
     clearTimeout(saveTimerRef.current);
-    saveTimerRef.current = setTimeout(() => {
-      setSyncStatus('saving');
-      saveGistData(gistConfig.gistId, gistConfig.token, GIST_FILENAME, { workouts })
-        .then(() => {
-          lastSyncedRef.current = serialized;
-          setSyncStatus('saved');
-          setTimeout(() => setSyncStatus('idle'), 3000);
-        })
-        .catch(() => setSyncStatus('error'));
-    }, 60_000);
+    saveTimerRef.current = setTimeout(() => doSave(serialized), 60_000);
     return () => clearTimeout(saveTimerRef.current);
-  }, [workouts, gistConfig, setSyncStatus]);
+  }, [workouts, gistConfig, setSyncStatus, doSave]);
 
-  // 4. Keepalive flush on page hide
+  // 4. Manual immediate save
+  const saveNow = useCallback(() => {
+    if (!gistConfig?.gistId || !gistConfig?.token) return;
+    clearTimeout(saveTimerRef.current);
+    doSave(JSON.stringify(workoutsRef.current));
+  }, [gistConfig, doSave]);
+
+  // 5. Keepalive flush on page hide
   useEffect(() => {
     function flush() {
       if (!gistConfig?.gistId || !gistConfig?.token) return;
@@ -73,4 +85,6 @@ export function useGistSync() {
       window.removeEventListener('beforeunload', flush);
     };
   }, [workouts, gistConfig]);
+
+  return { saveNow };
 }

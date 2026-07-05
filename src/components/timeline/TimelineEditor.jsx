@@ -37,7 +37,11 @@ function DragMonitor({ onMove }) {
 }
 
 function buildRulerTicks(totalSec, pxPerSecond) {
-  const interval = pxPerSecond < 10 ? 10 : pxPerSecond < 30 ? 5 : 1;
+  const interval =
+    pxPerSecond < 3  ? 60 :
+    pxPerSecond < 6  ? 30 :
+    pxPerSecond < 10 ? 10 :
+    pxPerSecond < 30 ? 5  : 1;
   const ticks = [];
   for (let t = 0; t <= totalSec + interval; t += interval) {
     ticks.push({ t, x: t * pxPerSecond });
@@ -185,20 +189,21 @@ export function TimelineEditor() {
       background: '#14152a', borderRadius: 8, border: '1px solid rgba(255,255,255,0.1)',
       overflow: 'hidden',
     }}>
-      {/* Ruler */}
-      <div style={{ height: RULER_HEIGHT, overflowX: 'hidden', borderBottom: '1px solid rgba(255,255,255,0.07)', background: '#1a1b30' }}>
-        <svg width={totalWidth} height={RULER_HEIGHT} style={{ display: 'block' }}>
-          {ticks.map(({ t, x }) => (
-            <g key={t}>
-              <line x1={x} y1={14} x2={x} y2={RULER_HEIGHT} stroke="rgba(255,255,255,0.25)" strokeWidth={1} />
-              <text x={x + 3} y={12} fontSize={9} fill="rgba(255,255,255,0.5)" fontFamily="monospace">{t}s</text>
-            </g>
-          ))}
-        </svg>
-      </div>
-
-      {/* Scrollable canvas */}
+      {/* Scrollable container: ruler + canvas scroll together */}
       <div ref={scrollRef} style={{ overflowX: 'auto', overflowY: 'hidden', width: '100%' }}>
+        {/* Ruler */}
+        <div style={{ width: totalWidth, minWidth: '100%', height: RULER_HEIGHT, borderBottom: '1px solid rgba(255,255,255,0.07)', background: '#1a1b30' }}>
+          <svg width={totalWidth} height={RULER_HEIGHT} style={{ display: 'block' }}>
+            {ticks.map(({ t, x }) => (
+              <g key={t}>
+                <line x1={x} y1={14} x2={x} y2={RULER_HEIGHT} stroke="rgba(255,255,255,0.25)" strokeWidth={1} />
+                <text x={x + 3} y={12} fontSize={9} fill="rgba(255,255,255,0.5)" fontFamily="monospace">{t}s</text>
+              </g>
+            ))}
+          </svg>
+        </div>
+
+        {/* Canvas */}
         <div
           ref={containerRef}
           style={{ position: 'relative', height: TIMELINE_CANVAS_HEIGHT, width: totalWidth, minWidth: '100%' }}
