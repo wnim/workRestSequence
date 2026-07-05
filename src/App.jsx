@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import useStore from './store/workoutStore';
 import { useGistSync } from './hooks/useGistSync';
 import { usePlayback } from './hooks/usePlayback';
@@ -7,7 +7,9 @@ import { TimelineEditor } from './components/timeline/TimelineEditor';
 import { PlaybackOverlay } from './components/playback/PlaybackOverlay';
 import { GistSetupModal } from './components/modals/GistSetupModal';
 import { WorkoutManagerModal } from './components/modals/WorkoutManagerModal';
+import { CodeEditorModal } from './components/modals/CodeEditorModal';
 import { Button } from './components/ui/button';
+import { Input } from './components/ui/input';
 import { blocksToTotalDuration, msToDisplay } from './utils/time';
 
 const SAVE_STATES = {
@@ -33,8 +35,18 @@ export default function App() {
   const gistConfig = useStore((s) => s.gistConfig);
   const activeWorkoutName = useStore((s) => s.activeWorkoutName);
 
+  const workouts = useStore((s) => s.workouts);
+  const renameWorkout = useStore((s) => s.renameWorkout);
+  const saveWorkout = useStore((s) => s.saveWorkout);
+
+  const contentRef = useRef(null);
+
   const [showGist, setShowGist] = useState(false);
   const [showManager, setShowManager] = useState(false);
+  const [showCode, setShowCode] = useState(false);
+  const [isRenaming, setIsRenaming] = useState(false);
+  const [renameValue, setRenameValue] = useState('');
+  const renameInputRef = useRef(null);
 
   const playback = usePlayback();
   const playState = useStore((s) => s.playState);
@@ -46,13 +58,27 @@ export default function App() {
   });
 
   const totalSec = blocksToTotalDuration(blocks);
-  const effectiveStatus = !gistConfig?.gistId ? 'disconnected' : syncStatus;
+
+  const savedBlocks = activeWorkoutName ? (workouts[activeWorkoutName]?.blocks ?? []) : [];
+  const hasLocalChanges = JSON.stringify(blocks) !== JSON.stringify(savedBlocks);
+
+  // For Gist status, only show it when Gist is configured and there's no local dirty state
+  const gistStatus = !gistConfig?.gistId ? 'disconnected' : syncStatus;
+  // Local dirty takes priority over Gist status
+  const effectiveStatus = hasLocalChanges ? 'dirty' : gistStatus;
   const saveState = SAVE_STATES[effectiveStatus] ?? SAVE_STATES.idle;
-  const canSave = effectiveStatus === 'dirty' || effectiveStatus === 'error';
+  const canSave = hasLocalChanges || effectiveStatus === 'error';
 
   function handleSave() {
-    if (effectiveStatus === 'disconnected') { setShowGist(true); return; }
-    if (canSave) saveNow();
+    if (!activeWorkoutName) {
+      // No workout name yet — trigger the rename flow so user names it first
+      setIsRenaming(true);
+      setRenameValue('');
+      setTimeout(() => renameInputRef.current?.focus(), 50);
+      return;
+    }
+    saveWorkout(activeWorkoutName);
+    if (gistConfig?.gistId && gistConfig?.token) saveNow();
   }
 
   const sliderLabel = { fontSize: 11, color: 'rgba(255,255,255,0.55)', display: 'flex', alignItems: 'center', gap: 6 };
@@ -65,11 +91,43 @@ export default function App() {
         display: 'flex', alignItems: 'center', gap: 10, padding: '8px 16px',
         background: '#22243c', borderBottom: '1px solid rgba(255,255,255,0.1)', flexWrap: 'wrap',
       }}>
-        <span style={{ fontSize: 13, fontFamily: 'monospace', color: 'rgba(255,255,255,0.75)', minWidth: 120 }}>
-          {activeWorkoutName ?? 'Untitled'}
-        </span>
+        {isRenaming ? (
+          <Input
+            ref={renameInputRef}
+            value={renameValue}
+            onChange={(e) => setRenameValue(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') {
+                const name = renameValue.trim();
+                if (name) {
+                  if (activeWorkoutName) renameWorkout(activeWorkoutName, name);
+                  else saveWorkout(name);
+                }
+                setIsRenaming(false);
+              }
+              if (e.key === 'Escape') setIsRenaming(false);
+            }}
+            onBlur={() => setIsRenaming(false)}
+            autoFocus
+            style={{ width: 160, height: 28, fontSize: 13, fontFamily: 'monospace', background: 'rgba(255,255,255,0.07)', border: '1px solid rgba(255,255,255,0.25)', color: 'white' }}
+          />
+        ) : (
+          <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+            <span style={{ fontSize: 13, fontFamily: 'monospace', color: 'rgba(255,255,255,0.75)' }}>
+              {activeWorkoutName ?? 'Untitled'}
+            </span>
+            <button
+              onClick={() => { setRenameValue(activeWorkoutName ?? ''); setIsRenaming(true); }}
+              title="Rename"
+              style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'rgba(255,255,255,0.3)', fontSize: 12, padding: '2px 4px', lineHeight: 1 }}
+            >
+              ✎
+            </button>
+          </div>
+        )}
 
         <Button variant="outline" style={btnBase} onClick={() => setShowManager(true)}>Workouts</Button>
+        <Button variant="outline" style={btnBase} onClick={() => setShowCode(true)}>{ '{…}' }</Button>
 
         <div style={{ flex: 1 }} />
 
@@ -79,20 +137,29 @@ export default function App() {
 
         <label style={sliderLabel}>
           Snap
-          <input type="range" min={1} max={30} value={resizeStep}
+          <input type="range" min={0.1} max={30} step={0.1} value={resizeStep}
             onChange={(e) => setResizeStep(Number(e.target.value))} style={{ width: 70 }} />
-          <span style={{ fontFamily: 'monospace', minWidth: 24 }}>{resizeStep}s</span>
+          <span style={{ fontFamily: 'monospace', minWidth: 32 }}>{resizeStep % 1 === 0 ? resizeStep : resizeStep.toFixed(1)}s</span>
         </label>
 
         <label style={sliderLabel}>
           Zoom
-          <input type="range" min={2} max={80} value={pxPerSecond}
-            onChange={(e) => setPxPerSecond(Number(e.target.value))} style={{ width: 80 }} />
+          <input type="range" min={0} max={100} value={Math.round(Math.log(pxPerSecond / 2) / Math.log(40) * 100)}
+            onChange={(e) => setPxPerSecond(2 * Math.pow(40, Number(e.target.value) / 100))} style={{ width: 80 }} />
+          <button
+            onClick={() => {
+              if (!totalSec || !contentRef.current) return;
+              const availableWidth = contentRef.current.clientWidth - 32; // 16px padding each side
+              setPxPerSecond(availableWidth / totalSec);
+            }}
+            title="Fit to screen"
+            style={{ background: 'none', border: '1px solid rgba(255,255,255,0.18)', borderRadius: 4, cursor: 'pointer', color: 'rgba(255,255,255,0.55)', fontSize: 12, padding: '1px 6px', lineHeight: 1.4 }}
+          >⟷</button>
         </label>
 
         <Button
           onClick={handleSave}
-          disabled={syncStatus === 'saving' || syncStatus === 'loading'}
+          disabled={!canSave && (syncStatus === 'saving' || syncStatus === 'loading')}
           style={{
             fontSize: 12, height: 30, padding: '0 16px',
             background: saveState.bg,
@@ -112,7 +179,7 @@ export default function App() {
       </div>
 
       {/* Content — timeline centered vertically */}
-      <div style={{ flex: 1, overflow: 'hidden', display: 'flex', flexDirection: 'column', justifyContent: 'center', padding: '16px' }}>
+      <div ref={contentRef} style={{ flex: 1, overflow: 'hidden', display: 'flex', flexDirection: 'column', justifyContent: 'center', padding: '16px' }}>
         {blocks.length === 0 ? (
           <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 16 }}>
             <p style={{ color: 'rgba(255,255,255,0.4)', fontFamily: 'monospace', fontSize: 13, margin: 0 }}>
@@ -151,6 +218,7 @@ export default function App() {
       {playState !== 'idle' && <PlaybackOverlay playback={playback} />}
       {showGist && <GistSetupModal onClose={() => setShowGist(false)} />}
       {showManager && <WorkoutManagerModal onClose={() => setShowManager(false)} />}
+      {showCode && <CodeEditorModal onClose={() => setShowCode(false)} />}
     </div>
   );
 }
