@@ -1,4 +1,4 @@
-import { msToDisplay } from '../../utils/time';
+import { msToStopwatch } from '../../utils/time';
 import useStore from '../../store/workoutStore';
 import { WaveformStrip } from './WaveformStrip';
 import { Button } from '../ui/button';
@@ -43,6 +43,10 @@ export function PlaybackOverlay({ playback }) {
 
       <div style={{ fontSize: '0.9rem', color: 'rgba(255,255,255,0.4)', marginTop: 4 }}>
         {blockIndex + 1} / {blocks.length}
+      </div>
+
+      <div style={{ fontSize: '1.1rem', color: 'rgba(255,255,255,0.5)', marginTop: 16, fontFamily: 'monospace', letterSpacing: '0.05em' }}>
+        {msToStopwatch(currentPositionMs)} / {msToStopwatch(totalMs)}
       </div>
 
       <div style={{ display: 'flex', gap: 12, marginTop: 32 }}>
