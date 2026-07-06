@@ -38,7 +38,8 @@ export function GistSetupModal({ onClose }) {
       const cfg = { gistId, token, filename: GIST_FILENAME };
       localStorage.setItem(LS_GIST_CONFIG, JSON.stringify(cfg));
       setGistConfig(cfg);
-      if (data?.workouts) setWorkouts(data.workouts);
+      // Merge: local workouts take priority over Gist (local edits are newer)
+      if (data?.workouts) setWorkouts({ ...data.workouts, ...useStore.getState().workouts });
       setStatus('Connected!');
       setTimeout(onClose, 800);
     } catch (e) {
