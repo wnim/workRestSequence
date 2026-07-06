@@ -1,14 +1,13 @@
 {
   "permissions": {
     "allow": [
-      "Bash(npm *)",
-      "Bash(npx *)",
-      "Read(//tmp/**)",
-      "Read(//home/nimw/.claude/**)",
-      "Bash(curl -s http://localhost:5174/)",
-      "Bash(git init *)",
+      "Bash(*)",
+      "Bash(npm test *)",
+      "Bash(npx tsc *)",
+      "Bash(npm run *)",
       "Bash(git add *)",
-      "Bash(git commit -m ' *)"
+      "Bash(git commit -m ' *)",
+      "Bash(git push *)"
     ]
   }
 }

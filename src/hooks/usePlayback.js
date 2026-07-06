@@ -43,6 +43,11 @@ export function usePlayback() {
       }
 
       for (const tickBefore of [3000, 2000, 1000]) {
+        // Only count down the last N seconds of a block if the block is actually N seconds long.
+        // This prevents ticks firing before the block even starts, and provably prevents
+        // two countdowns from ever overlapping: each countdown starts no earlier than its block's
+        // own start, which is always after the previous block ended.
+        if (b.duration * 1000 < tickBefore) continue;
         const tickOffset = blockEnd - tickBefore - alreadyElapsedMs;
         if (tickOffset >= 0) {
           const id = setTimeout(() => audio.playTick(), tickOffset);

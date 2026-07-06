@@ -151,9 +151,9 @@ describe('resizeBlock', () => {
     expect(useStore.getState().blocks[0].duration).toBe(7);
   });
 
-  it('clamps minimum to 1s', () => {
+  it('clamps minimum to 0.1s', () => {
     useStore.getState().resizeBlock('a', -100);
-    expect(useStore.getState().blocks[0].duration).toBe(1);
+    expect(useStore.getState().blocks[0].duration).toBe(0.1);
   });
 
   it('clamps maximum to 3600s', () => {

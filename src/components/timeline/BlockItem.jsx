@@ -124,7 +124,7 @@ export function BlockItem({ block, index, blocks, pxPerSecond, onDoubleClick, dr
   function handleClick(e) {
     if (e.ctrlKey || e.metaKey) toggleSelected(block.id);
     else if (e.shiftKey) extendSelectionTo(block.id, blocks);
-    else setSelectedIds(new Set([block.id]));
+    else if (!isSelected) setSelectedIds(new Set([block.id]));
   }
 
   const labelText = block.label || (isWork ? 'Work' : 'Rest');
