@@ -1,13 +1,24 @@
 import { create } from 'zustand';
 import { v4 as uuid } from 'uuid';
 import { arrayMove } from '@dnd-kit/sortable';
-import { LS_GIST_CONFIG, LS_WORKOUTS } from '../utils/constants';
+import { LS_GIST_CONFIG, LS_WORKOUTS, LS_ACTIVE_WORKOUT } from '../utils/constants';
 
 function loadWorkoutsFromLS() {
   try {
     const raw = localStorage.getItem(LS_WORKOUTS);
     return raw ? JSON.parse(raw) : {};
   } catch { return {}; }
+}
+
+function loadActiveWorkout() {
+  try {
+    const name = localStorage.getItem(LS_ACTIVE_WORKOUT);
+    if (!name) return { activeWorkoutName: null, blocks: [], resizeStep: 1 };
+    const workouts = loadWorkoutsFromLS();
+    const workout = workouts[name];
+    if (!workout) return { activeWorkoutName: null, blocks: [], resizeStep: 1 };
+    return { activeWorkoutName: name, blocks: workout.blocks, resizeStep: workout.resizeStep ?? 1 };
+  } catch { return { activeWorkoutName: null, blocks: [], resizeStep: 1 }; }
 }
 
 function loadGistConfigFromLS() {
@@ -24,14 +35,12 @@ function pushPast(state, blocks) {
 
 const useStore = create((set, get) => ({
   workouts: loadWorkoutsFromLS(),
-  activeWorkoutName: null,
-  blocks: [],
+  ...loadActiveWorkout(),
   selectedIds: new Set(),
   clipboardBlocks: [],
   past: [],
   future: [],
   pxPerSecond: 20,
-  resizeStep: 1,
   gistConfig: loadGistConfigFromLS(),
   syncStatus: 'idle',
   playState: 'idle',
@@ -61,13 +70,18 @@ const useStore = create((set, get) => ({
   resizeBlock: (id, deltaSeconds) => set((s) => ({
     ...pushPast(s, s.blocks),
     blocks: s.blocks.map((b) =>
-      b.id === id ? { ...b, duration: Math.max(1, Math.min(3600, b.duration + deltaSeconds)) } : b
+      b.id === id ? { ...b, duration: Math.max(0.1, Math.min(3600, b.duration + deltaSeconds)) } : b
     ),
   })),
 
   updateBlock: (id, patch) => set((s) => ({
     ...pushPast(s, s.blocks),
     blocks: s.blocks.map((b) => (b.id === id ? { ...b, ...patch } : b)),
+  })),
+
+  updateBlocks: (ids, patch) => set((s) => ({
+    ...pushPast(s, s.blocks),
+    blocks: s.blocks.map((b) => (ids.has(b.id) ? { ...b, ...patch } : b)),
   })),
 
   setSelectedIds: (set_) => set({ selectedIds: set_ }),
@@ -117,29 +131,34 @@ const useStore = create((set, get) => ({
     return { blocks, future, past: [...s.past, s.blocks].slice(-30) };
   }),
 
-  saveWorkout: (name) => set((s) => ({
-    workouts: { ...s.workouts, [name]: { name, blocks: s.blocks } },
-    activeWorkoutName: name,
-  })),
+  saveWorkout: (name) => set((s) => {
+    localStorage.setItem(LS_ACTIVE_WORKOUT, name);
+    return { workouts: { ...s.workouts, [name]: { name, blocks: s.blocks, resizeStep: s.resizeStep } }, activeWorkoutName: name };
+  }),
 
   loadWorkout: (name) => set((s) => {
     const workout = s.workouts[name];
     if (!workout) return {};
-    return { blocks: workout.blocks, activeWorkoutName: name, selectedIds: new Set(), past: [], future: [] };
+    localStorage.setItem(LS_ACTIVE_WORKOUT, name);
+    return { blocks: workout.blocks, resizeStep: workout.resizeStep ?? 1, activeWorkoutName: name, selectedIds: new Set(), past: [], future: [] };
   }),
 
   deleteWorkout: (name) => set((s) => {
     const { [name]: _, ...rest } = s.workouts;
-    return { workouts: rest, activeWorkoutName: s.activeWorkoutName === name ? null : s.activeWorkoutName };
+    const nextActive = s.activeWorkoutName === name ? null : s.activeWorkoutName;
+    if (nextActive === null) localStorage.removeItem(LS_ACTIVE_WORKOUT);
+    return { workouts: rest, activeWorkoutName: nextActive };
   }),
 
   renameWorkout: (oldName, newName) => set((s) => {
     const workout = s.workouts[oldName];
     if (!workout) return {};
     const { [oldName]: _, ...rest } = s.workouts;
+    const nextActive = s.activeWorkoutName === oldName ? newName : s.activeWorkoutName;
+    if (nextActive === newName) localStorage.setItem(LS_ACTIVE_WORKOUT, newName);
     return {
       workouts: { ...rest, [newName]: { ...workout, name: newName } },
-      activeWorkoutName: s.activeWorkoutName === oldName ? newName : s.activeWorkoutName,
+      activeWorkoutName: nextActive,
     };
   }),
 
@@ -152,7 +171,7 @@ const useStore = create((set, get) => ({
   setBlocks: (blocks) => set((s) => ({ ...pushPast(s, s.blocks), blocks })),
 
   setPxPerSecond: (px) => set({ pxPerSecond: Math.max(2, Math.min(100, px)) }),
-  setResizeStep: (s) => set({ resizeStep: Math.max(1, Math.min(60, s)) }),
+  setResizeStep: (s) => set({ resizeStep: Math.max(0.1, Math.min(60, s)) }),
 
   setPlayState: (playState) => set({ playState }),
   setPlayStartWallTime: (t) => set({ playStartWallTime: t }),

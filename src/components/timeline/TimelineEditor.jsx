@@ -59,7 +59,7 @@ export function TimelineEditor() {
 
   const containerRef = useRef(null);
   const scrollRef = useRef(null);
-  const [editingBlock, setEditingBlock] = useState(null);
+  const [editingBlocks, setEditingBlocks] = useState(null);
   const [rubberBand, setRubberBand] = useState(null);
   const rubberStart = useRef(null);
   const [dragActiveId, setDragActiveId] = useState(null);
@@ -231,7 +231,14 @@ export function TimelineEditor() {
                   index={i}
                   blocks={blocks}
                   pxPerSecond={pxPerSecond}
-                  onDoubleClick={setEditingBlock}
+                  onDoubleClick={(clicked) => {
+                    if (selectedIds.has(clicked.id) && selectedIds.size > 1) {
+                      const sorted = blocks.filter((b) => selectedIds.has(b.id));
+                      setEditingBlocks(sorted);
+                    } else {
+                      setEditingBlocks([clicked]);
+                    }
+                  }}
                   dragActiveId={dragActiveId}
                   dragDeltaX={dragDeltaX}
                   dragDeltaY={dragDeltaY}
@@ -257,8 +264,8 @@ export function TimelineEditor() {
         </div>
       </div>
 
-      {editingBlock && (
-        <BlockEditModal block={editingBlock} onClose={() => setEditingBlock(null)} />
+      {editingBlocks && (
+        <BlockEditModal blocks={editingBlocks} onClose={() => setEditingBlocks(null)} />
       )}
     </div>
   );
