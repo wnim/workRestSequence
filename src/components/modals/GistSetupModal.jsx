@@ -62,7 +62,7 @@ export function GistSetupModal({ onClose }) {
 
           <div>
             <Label style={{ color: 'rgba(255,255,255,0.7)' }}>GitHub PAT</Label>
-            <Input type="password" value={token} onChange={(e) => setToken(e.target.value)} placeholder="ghp_..." style={inputStyle} />
+            <Input type="text" autoComplete="off" value={token} onChange={(e) => setToken(e.target.value)} placeholder="ghp_..." style={inputStyle} />
           </div>
 
           <div>
