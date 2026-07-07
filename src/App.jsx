@@ -10,6 +10,7 @@ import { WorkoutManagerModal } from './components/modals/WorkoutManagerModal';
 import { CodeEditorModal } from './components/modals/CodeEditorModal';
 import { Button } from './components/ui/button';
 import { Input } from './components/ui/input';
+import { KeyboardShortcutsHelp } from './components/ui/KeyboardShortcutsHelp';
 import { blocksToTotalDuration, msToDisplay } from './utils/time';
 
 const SAVE_STATES = {
@@ -45,6 +46,7 @@ export default function App() {
   const [showGist, setShowGist] = useState(false);
   const [showManager, setShowManager] = useState(false);
   const [showCode, setShowCode] = useState(false);
+  const [showHelp, setShowHelp] = useState(false);
   const [isRenaming, setIsRenaming] = useState(false);
   const [renameValue, setRenameValue] = useState('');
   const renameInputRef = useRef(null);
@@ -56,6 +58,7 @@ export default function App() {
     onPlay: playback.play,
     onPause: playback.togglePause,
     onStop: playback.stop,
+    onHelp: () => setShowHelp((v) => !v),
   });
 
   const totalSec = blocksToTotalDuration(blocks);
@@ -233,6 +236,7 @@ export default function App() {
       {showGist && <GistSetupModal onClose={() => setShowGist(false)} />}
       {showManager && <WorkoutManagerModal onClose={() => setShowManager(false)} onLoad={handleLoadWorkout} />}
       {showCode && <CodeEditorModal onClose={() => setShowCode(false)} />}
+      <KeyboardShortcutsHelp open={showHelp} onClose={() => setShowHelp(false)} />
     </div>
   );
 }

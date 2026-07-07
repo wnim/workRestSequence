@@ -40,7 +40,7 @@ Reference: `/home/nimw/experiments/jumpRopePlanner/sound-bank.js`.
 
 ---
 
-## 5. [ ] Keyboard shortcuts — add a discoverable help panel
+## 5. [x] Keyboard shortcuts — add a discoverable help panel
 **Difficulty: 2/5** — A new self-contained component with some CSS animation. Reference is directly portable.
 
 `useKeyboard.js` registers several shortcuts (Delete, Ctrl+C/V, Ctrl+Z/Y, Space) but there's no way for users to discover them. Add a help panel component that opens on `?` keypress, displays shortcuts grouped by category using styled `<Kbd>` chips, animates open/close with scale+opacity, and closes on click-outside or any other key.

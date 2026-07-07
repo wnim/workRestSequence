@@ -2,12 +2,35 @@
   "permissions": {
     "allow": [
       "Bash(*)",
+      "Read(*)",
+      "Write(*)",
       "Bash(npm test *)",
       "Bash(npx tsc *)",
       "Bash(npm run *)",
       "Bash(git add *)",
-      "Bash(git commit -m ' *)",
-      "Bash(git push *)"
+      "Bash(git commit *)",
+      "Bash(git push *)",
+      "Bash(grep -n \"pastRef\\\\|futureRef\\\\|past\\\\|future\\\\|undo\\\\|redo\" /home/nimw/experiments/skillTree/src/useSkillTree.js | head -50)",
+      "Read(/home/nimw/experiments/skillTree/src/**)",
+      "Bash(npx vitest *)",
+      "Skill(fewer-permission-prompts)",
+      "Skill(fewer-permission-prompts:*)",
+      "Bash(ls ~/.claude/projects/ 2>/dev/null | head -20)",
+      "Read(/home/nimw/.claude/projects/**)",
+      "Bash(awk '{print $2}')",
+      "Bash(xargs -I{} sh -c 'jq -r \"select\\(.type==\\\\\"assistant\\\\\"\\) | .message.content[]? | select\\(.type==\\\\\"tool_use\\\\\" and .name==\\\\\"Bash\\\\\"\\) | .input.command\" \"{}\" 2>/dev/null')",
+      "Bash(grep -v \"^$\")",
+      "Bash(awk '{print $1}')",
+      "Bash(python3 -)",
+      "Read(/home/nimw/.claude/**)",
+      "Bash(python3 -c \"import json,sys; d=json.load\\(sys.stdin\\); print\\(json.dumps\\(d.get\\('permissions',{}\\), indent=2\\)\\)\")",
+      "Bash(git -C /home/nimw/experiments/workRestSequence diff --stat HEAD)",
+      "Bash(python3 -c ' *)",
+      "Bash(cat ~/.claude/settings.json 2>/dev/null || echo \"NOT FOUND\")",
+      "Bash(cat ~/.claude/settings.local.json 2>/dev/null || echo \"NOT FOUND\")",
+      "Bash(git -C /home/nimw/experiments/workRestSequence status --short)",
+      "Bash(git -C /home/nimw/experiments/workRestSequence add src/App.jsx src/hooks/useKeyboard.js src/components/ui/KeyboardShortcutsHelp.jsx todo.md CLAUDE.md .claude/settings.json .claude/settings.local.json)",
+      "Bash(git -C /home/nimw/experiments/workRestSequence commit -m 'Add keyboard shortcuts help panel, fix audio cleanup, move undo history to refs')"
     ]
   }
 }

@@ -1,7 +1,7 @@
 import { useEffect } from 'react';
 import useStore from '../store/workoutStore';
 
-export function useKeyboard({ onPlay, onPause, onStop } = {}) {
+export function useKeyboard({ onPlay, onPause, onStop, onHelp } = {}) {
   const removeBlocks = useStore((s) => s.removeBlocks);
   const selectedIds = useStore((s) => s.selectedIds);
   const copySelection = useStore((s) => s.copySelection);
@@ -35,10 +35,12 @@ export function useKeyboard({ onPlay, onPause, onStop } = {}) {
         e.preventDefault(); redo();
       } else if (e.code === 'Space') {
         e.preventDefault(); onPlay?.();
+      } else if (e.key === '?') {
+        onHelp?.();
       }
     }
 
     window.addEventListener('keydown', handler);
     return () => window.removeEventListener('keydown', handler);
-  }, [selectedIds, playState, removeBlocks, copySelection, pasteBlocks, undo, redo, onPlay, onPause, onStop]);
+  }, [selectedIds, playState, removeBlocks, copySelection, pasteBlocks, undo, redo, onPlay, onPause, onStop, onHelp]);
 }
