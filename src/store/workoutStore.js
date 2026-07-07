@@ -28,9 +28,13 @@ function loadGistConfigFromLS() {
   } catch { return null; }
 }
 
-function pushPast(state, blocks) {
-  const past = [...state.past, blocks].slice(-30);
-  return { past, future: [] };
+// History lives outside Zustand state so mutations don't trigger re-renders.
+let past = [];
+let future = [];
+
+function pushPast(blocks) {
+  past = [...past, blocks].slice(-50);
+  future = [];
 }
 
 const useStore = create((set, get) => ({
@@ -38,8 +42,6 @@ const useStore = create((set, get) => ({
   ...loadActiveWorkout(),
   selectedIds: new Set(),
   clipboardBlocks: [],
-  past: [],
-  future: [],
   pxPerSecond: 20,
   gistConfig: loadGistConfigFromLS(),
   syncStatus: 'idle',
@@ -49,40 +51,43 @@ const useStore = create((set, get) => ({
   pausedAt: null,
 
   addBlock: (type) => set((s) => {
+    pushPast(s.blocks);
     const newBlock = { id: uuid(), type, duration: 10, label: '' };
-    return { ...pushPast(s, s.blocks), blocks: [...s.blocks, newBlock] };
+    return { blocks: [...s.blocks, newBlock] };
   }),
 
   removeBlocks: (ids) => set((s) => {
     const idSet = ids instanceof Set ? ids : new Set(ids);
+    pushPast(s.blocks);
     return {
-      ...pushPast(s, s.blocks),
       blocks: s.blocks.filter((b) => !idSet.has(b.id)),
       selectedIds: new Set(),
     };
   }),
 
-  reorderBlocks: (fromIndex, toIndex) => set((s) => ({
-    ...pushPast(s, s.blocks),
-    blocks: arrayMove(s.blocks, fromIndex, toIndex),
-  })),
+  reorderBlocks: (fromIndex, toIndex) => set((s) => {
+    pushPast(s.blocks);
+    return { blocks: arrayMove(s.blocks, fromIndex, toIndex) };
+  }),
 
-  resizeBlock: (id, deltaSeconds) => set((s) => ({
-    ...pushPast(s, s.blocks),
-    blocks: s.blocks.map((b) =>
-      b.id === id ? { ...b, duration: Math.max(0.1, Math.min(3600, b.duration + deltaSeconds)) } : b
-    ),
-  })),
+  resizeBlock: (id, deltaSeconds) => set((s) => {
+    pushPast(s.blocks);
+    return {
+      blocks: s.blocks.map((b) =>
+        b.id === id ? { ...b, duration: Math.max(0.1, Math.min(3600, b.duration + deltaSeconds)) } : b
+      ),
+    };
+  }),
 
-  updateBlock: (id, patch) => set((s) => ({
-    ...pushPast(s, s.blocks),
-    blocks: s.blocks.map((b) => (b.id === id ? { ...b, ...patch } : b)),
-  })),
+  updateBlock: (id, patch) => set((s) => {
+    pushPast(s.blocks);
+    return { blocks: s.blocks.map((b) => (b.id === id ? { ...b, ...patch } : b)) };
+  }),
 
-  updateBlocks: (ids, patch) => set((s) => ({
-    ...pushPast(s, s.blocks),
-    blocks: s.blocks.map((b) => (ids.has(b.id) ? { ...b, ...patch } : b)),
-  })),
+  updateBlocks: (ids, patch) => set((s) => {
+    pushPast(s.blocks);
+    return { blocks: s.blocks.map((b) => (ids.has(b.id) ? { ...b, ...patch } : b)) };
+  }),
 
   setSelectedIds: (set_) => set({ selectedIds: set_ }),
 
@@ -115,20 +120,25 @@ const useStore = create((set, get) => ({
     const insertAfter = selected.length > 0 ? Math.max(...selected) : s.blocks.length - 1;
     const result = [...s.blocks];
     result.splice(insertAfter + 1, 0, ...newBlocks);
-    return { ...pushPast(s, s.blocks), blocks: result, selectedIds: new Set(newBlocks.map((b) => b.id)) };
+    pushPast(s.blocks);
+    return { blocks: result, selectedIds: new Set(newBlocks.map((b) => b.id)) };
   }),
 
   undo: () => set((s) => {
-    if (s.past.length === 0) return {};
-    const past = [...s.past];
-    const blocks = past.pop();
-    return { blocks, past, future: [s.blocks, ...s.future].slice(0, 30) };
+    if (past.length === 0) return {};
+    const next = [...past];
+    const blocks = next.pop();
+    future = [s.blocks, ...future].slice(0, 50);
+    past = next;
+    return { blocks };
   }),
 
   redo: () => set((s) => {
-    if (s.future.length === 0) return {};
-    const [blocks, ...future] = s.future;
-    return { blocks, future, past: [...s.past, s.blocks].slice(-30) };
+    if (future.length === 0) return {};
+    const [blocks, ...rest] = future;
+    past = [...past, s.blocks].slice(-50);
+    future = rest;
+    return { blocks };
   }),
 
   saveWorkout: (name) => set((s) => {
@@ -140,7 +150,9 @@ const useStore = create((set, get) => ({
     const workout = s.workouts[name];
     if (!workout) return {};
     localStorage.setItem(LS_ACTIVE_WORKOUT, name);
-    return { blocks: workout.blocks, resizeStep: workout.resizeStep ?? 1, activeWorkoutName: name, selectedIds: new Set(), past: [], future: [] };
+    past = [];
+    future = [];
+    return { blocks: workout.blocks, resizeStep: workout.resizeStep ?? 1, activeWorkoutName: name, selectedIds: new Set() };
   }),
 
   deleteWorkout: (name) => set((s) => {
@@ -168,7 +180,7 @@ const useStore = create((set, get) => ({
 
   setSyncStatus: (status) => set({ syncStatus: status }),
 
-  setBlocks: (blocks) => set((s) => ({ ...pushPast(s, s.blocks), blocks })),
+  setBlocks: (blocks) => set((s) => { pushPast(s.blocks); return { blocks }; }),
 
   setPxPerSecond: (px) => set({ pxPerSecond: Math.max(2, Math.min(100, px)) }),
   setResizeStep: (s) => set({ resizeStep: Math.max(0.1, Math.min(60, s)) }),
@@ -177,6 +189,10 @@ const useStore = create((set, get) => ({
   setPlayStartWallTime: (t) => set({ playStartWallTime: t }),
   setPausedDuration: (d) => set({ pausedDuration: d }),
   setPausedAt: (t) => set({ pausedAt: t }),
+
+  // For testing: inspect and reset history without storing it in reactive state.
+  getHistory: () => ({ past, future }),
+  resetHistory: () => { past = []; future = []; },
 }));
 
 export default useStore;

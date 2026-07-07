@@ -7,8 +7,6 @@ const INITIAL_STATE = {
   blocks: [],
   selectedIds: new Set(),
   clipboardBlocks: [],
-  past: [],
-  future: [],
   pxPerSecond: 20,
   gistConfig: null,
   syncStatus: 'idle',
@@ -20,6 +18,7 @@ const INITIAL_STATE = {
 
 beforeEach(() => {
   useStore.setState(INITIAL_STATE);
+  useStore.getState().resetHistory();
 });
 
 // ---------------------------------------------------------------------------
@@ -43,14 +42,15 @@ describe('addBlock', () => {
 
   it('pushes to past history', () => {
     useStore.getState().addBlock('work');
-    expect(useStore.getState().past).toHaveLength(1);
-    expect(useStore.getState().past[0]).toEqual([]);
+    expect(useStore.getState().getHistory().past).toHaveLength(1);
+    expect(useStore.getState().getHistory().past[0]).toEqual([]);
   });
 
   it('clears future on add', () => {
-    useStore.setState({ future: [[{ id: 'x', type: 'work', duration: 5, label: '' }]] });
     useStore.getState().addBlock('work');
-    expect(useStore.getState().future).toHaveLength(0);
+    useStore.getState().undo();
+    useStore.getState().addBlock('rest');
+    expect(useStore.getState().getHistory().future).toHaveLength(0);
   });
 
   it('assigns unique IDs to each block', () => {
@@ -97,8 +97,8 @@ describe('removeBlocks', () => {
 
   it('pushes current blocks to past', () => {
     useStore.getState().removeBlocks(new Set(['a']));
-    expect(useStore.getState().past).toHaveLength(1);
-    expect(useStore.getState().past[0]).toHaveLength(3);
+    expect(useStore.getState().getHistory().past).toHaveLength(1);
+    expect(useStore.getState().getHistory().past[0]).toHaveLength(3);
   });
 });
 
@@ -358,12 +358,12 @@ describe('undo / redo', () => {
     useStore.getState().addBlock('work');
     useStore.getState().undo();
     useStore.getState().addBlock('rest');
-    expect(useStore.getState().future).toHaveLength(0);
+    expect(useStore.getState().getHistory().future).toHaveLength(0);
   });
 
-  it('caps past history at 30 entries', () => {
-    for (let i = 0; i < 35; i++) useStore.getState().addBlock('work');
-    expect(useStore.getState().past.length).toBeLessThanOrEqual(30);
+  it('caps past history at 50 entries', () => {
+    for (let i = 0; i < 55; i++) useStore.getState().addBlock('work');
+    expect(useStore.getState().getHistory().past.length).toBeLessThanOrEqual(50);
   });
 });
 
@@ -389,7 +389,7 @@ describe('workout CRUD', () => {
     useStore.getState().addBlock('work');
     useStore.getState().loadWorkout('Morning');
     expect(useStore.getState().blocks).toEqual(blocks);
-    expect(useStore.getState().past).toHaveLength(0);
+    expect(useStore.getState().getHistory().past).toHaveLength(0);
     expect(useStore.getState().activeWorkoutName).toBe('Morning');
   });
 
