@@ -110,12 +110,16 @@ export async function findWorkoutGists(token) {
     const file = Object.values(gist.files).find((f) => f.filename === GIST_FILENAME);
     if (!file) continue;
     try {
-      const content = file.truncated
+      const content = (file.truncated || file.content == null)
         ? await fetch(file.raw_url).then((r) => r.text())
         : file.content;
       const data = JSON.parse(content);
       if (data?.workouts) results.push({ gistId: gist.id, data });
     } catch { /* skip unparseable */ }
   }
-  return results;
+  return results.sort((a, b) => {
+    const aEmpty = Object.keys(a.data.workouts).length === 0;
+    const bEmpty = Object.keys(b.data.workouts).length === 0;
+    return aEmpty - bEmpty;
+  });
 }
