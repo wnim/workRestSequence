@@ -28,7 +28,6 @@ export default function App() {
   const blocks = useStore((s) => s.blocks);
   const addBlock = useStore((s) => s.addBlock);
   const setBlocks = useStore((s) => s.setBlocks);
-  const pxPerSecond = useStore((s) => s.pxPerSecond);
   const setPxPerSecond = useStore((s) => s.setPxPerSecond);
   const resizeStep = useStore((s) => s.resizeStep);
   const setResizeStep = useStore((s) => s.setResizeStep);
@@ -59,6 +58,7 @@ export default function App() {
     onPause: playback.togglePause,
     onStop: playback.stop,
     onHelp: () => setShowHelp((v) => !v),
+    onSave: handleSave,
   });
 
   const totalSec = blocksToTotalDuration(blocks);
@@ -162,17 +162,11 @@ export default function App() {
           <span style={{ fontFamily: 'monospace', minWidth: 32 }}>{resizeStep % 1 === 0 ? resizeStep : resizeStep.toFixed(1)}s</span>
         </label>
 
-        <label style={sliderLabel}>
-          Zoom
-          <input type="range" min={0} max={100} value={Math.round(Math.log(pxPerSecond / 2) / Math.log(40) * 100)}
-            onChange={(e) => setPxPerSecond(2 * Math.pow(40, Number(e.target.value) / 100))} style={{ width: 80 }} />
-          <button
-            onClick={() => fitToScreen(totalSec)}
-
-            title="Fit to screen"
-            style={{ background: 'none', border: '1px solid rgba(255,255,255,0.18)', borderRadius: 4, cursor: 'pointer', color: 'rgba(255,255,255,0.55)', fontSize: 12, padding: '1px 6px', lineHeight: 1.4 }}
-          >⟷</button>
-        </label>
+        <button
+          onClick={() => fitToScreen(totalSec)}
+          title="Fit to screen (Ctrl+Scroll to zoom)"
+          style={{ background: 'none', border: '1px solid rgba(255,255,255,0.18)', borderRadius: 4, cursor: 'pointer', color: 'rgba(255,255,255,0.55)', fontSize: 12, padding: '1px 8px', lineHeight: 1.4 }}
+        >⟷</button>
 
         <Button
           onClick={handleSave}

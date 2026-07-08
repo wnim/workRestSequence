@@ -1,7 +1,11 @@
 import { useEffect } from 'react';
 import useStore from '../store/workoutStore';
 
-export function useKeyboard({ onPlay, onPause, onStop, onHelp } = {}) {
+function key(e, letter, code) {
+  return /^[a-z]$/i.test(e.key) ? e.key.toLowerCase() === letter : e.code === code;
+}
+
+export function useKeyboard({ onPlay, onPause, onStop, onHelp, onSave } = {}) {
   const removeBlocks = useStore((s) => s.removeBlocks);
   const selectedIds = useStore((s) => s.selectedIds);
   const copySelection = useStore((s) => s.copySelection);
@@ -15,6 +19,10 @@ export function useKeyboard({ onPlay, onPause, onStop, onHelp } = {}) {
       const tag = e.target?.tagName?.toLowerCase();
       const isEditing = tag === 'input' || tag === 'textarea' || e.target?.isContentEditable;
 
+      if ((e.ctrlKey || e.metaKey) && key(e, 's', 'KeyS')) {
+        e.preventDefault(); onSave?.(); return;
+      }
+
       if (playState !== 'idle') {
         if (e.code === 'Space') { e.preventDefault(); onPause?.(); return; }
         if (e.code === 'Escape') { onStop?.(); return; }
@@ -25,13 +33,13 @@ export function useKeyboard({ onPlay, onPause, onStop, onHelp } = {}) {
 
       if (e.code === 'Delete' || e.code === 'Backspace') {
         if (selectedIds.size > 0) removeBlocks(selectedIds);
-      } else if ((e.ctrlKey || e.metaKey) && e.key === 'c') {
+      } else if ((e.ctrlKey || e.metaKey) && key(e, 'c', 'KeyC')) {
         copySelection();
-      } else if ((e.ctrlKey || e.metaKey) && e.key === 'v') {
+      } else if ((e.ctrlKey || e.metaKey) && key(e, 'v', 'KeyV')) {
         pasteBlocks();
-      } else if ((e.ctrlKey || e.metaKey) && e.key === 'z' && !e.shiftKey) {
+      } else if ((e.ctrlKey || e.metaKey) && key(e, 'z', 'KeyZ') && !e.shiftKey) {
         e.preventDefault(); undo();
-      } else if ((e.ctrlKey || e.metaKey) && (e.key === 'y' || (e.key === 'z' && e.shiftKey))) {
+      } else if ((e.ctrlKey || e.metaKey) && (key(e, 'y', 'KeyY') || (key(e, 'z', 'KeyZ') && e.shiftKey))) {
         e.preventDefault(); redo();
       } else if (e.code === 'Space') {
         e.preventDefault(); onPlay?.();
@@ -42,5 +50,5 @@ export function useKeyboard({ onPlay, onPause, onStop, onHelp } = {}) {
 
     window.addEventListener('keydown', handler);
     return () => window.removeEventListener('keydown', handler);
-  }, [selectedIds, playState, removeBlocks, copySelection, pasteBlocks, undo, redo, onPlay, onPause, onStop, onHelp]);
+  }, [selectedIds, playState, removeBlocks, copySelection, pasteBlocks, undo, redo, onPlay, onPause, onStop, onHelp, onSave]);
 }
