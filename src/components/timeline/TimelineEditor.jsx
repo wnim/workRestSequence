@@ -52,6 +52,7 @@ function buildRulerTicks(totalSec, pxPerSecond) {
 export function TimelineEditor() {
   const blocks = useStore((s) => s.blocks);
   const pxPerSecond = useStore((s) => s.pxPerSecond);
+  const setPxPerSecond = useStore((s) => s.setPxPerSecond);
   const selectedIds = useStore((s) => s.selectedIds);
   const setSelectedIds = useStore((s) => s.setSelectedIds);
   const reorderBlocks = useStore((s) => s.reorderBlocks);
@@ -59,6 +60,8 @@ export function TimelineEditor() {
 
   const containerRef = useRef(null);
   const scrollRef = useRef(null);
+  const pxPerSecondRef = useRef(pxPerSecond);
+  const pendingScrollRef = useRef(null);
   const [scrollContainerWidth, setScrollContainerWidth] = useState(0);
   const [editingBlocks, setEditingBlocks] = useState(null);
   const [rubberBand, setRubberBand] = useState(null);
@@ -68,6 +71,8 @@ export function TimelineEditor() {
   const [dragDeltaY, setDragDeltaY] = useState(0);
   const [suppressTransition, setSuppressTransition] = useState(false);
 
+  useEffect(() => { pxPerSecondRef.current = pxPerSecond; }, [pxPerSecond]);
+
   useEffect(() => {
     const el = scrollRef.current;
     if (!el) return;
@@ -75,6 +80,36 @@ export function TimelineEditor() {
     ro.observe(el);
     return () => ro.disconnect();
   }, []);
+
+  // Ctrl+scroll zooms in/out anchored to the cursor; plain scroll pans the timeline.
+  useEffect(() => {
+    const el = scrollRef.current;
+    if (!el) return;
+    const onWheel = (e) => {
+      e.preventDefault();
+      if (e.ctrlKey) {
+        const rect = el.getBoundingClientRect();
+        const mouseX = e.clientX - rect.left;
+        const cur = pxPerSecondRef.current;
+        const timeAtCursor = (el.scrollLeft + mouseX) / cur;
+        const delta = e.deltaMode === 1 ? e.deltaY * 30 : e.deltaY;
+        const newPx = Math.max(2, Math.min(100, cur * Math.exp(-delta * 0.001)));
+        pendingScrollRef.current = Math.max(0, timeAtCursor * newPx - mouseX);
+        setPxPerSecond(newPx);
+      } else {
+        el.scrollLeft += e.deltaX + e.deltaY;
+      }
+    };
+    el.addEventListener('wheel', onWheel, { passive: false });
+    return () => el.removeEventListener('wheel', onWheel);
+  }, [setPxPerSecond]);
+
+  // After a zoom, restore scroll position so the point under the cursor stays fixed.
+  useEffect(() => {
+    if (pendingScrollRef.current === null || !scrollRef.current) return;
+    scrollRef.current.scrollLeft = pendingScrollRef.current;
+    pendingScrollRef.current = null;
+  }, [pxPerSecond]);
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 6 } })

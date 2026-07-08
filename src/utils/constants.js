@@ -6,6 +6,7 @@ export const BLOCK_TOP = Math.round((TIMELINE_CANVAS_HEIGHT - BLOCK_HEIGHT) / 2)
 // Visual scale applied to all blocks in an active multi-block drag
 export const MULTI_DRAG_SCALE = 0.75;
 
+export const LS_PX_PER_SECOND = 'pulse_timer_px_per_second';
 export const LS_GIST_CONFIG = 'pulse_timer_gist_config';
 export const LS_WORKOUTS = 'pulse_timer_workouts';
 export const LS_ACTIVE_WORKOUT = 'pulse_timer_active_workout';

@@ -9,6 +9,13 @@ const SHORTCUTS = [
     ],
   },
   {
+    topic: 'Navigation',
+    items: [
+      { keys: ['Ctrl', 'Scroll'], description: 'Zoom in / out' },
+      { keys: ['Scroll'], description: 'Pan timeline' },
+    ],
+  },
+  {
     topic: 'Editing',
     items: [
       { keys: ['Del'], description: 'Delete selected' },
@@ -89,7 +96,7 @@ export function KeyboardShortcutsHelp({ open, onClose }) {
           pointerEvents: open ? 'auto' : 'none',
         }}
       >
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 16 }}>
           {SHORTCUTS.map((section) => (
             <div key={section.topic} style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
               <span style={{ fontSize: 10, fontWeight: 600, color: 'rgba(255,255,255,0.4)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 2 }}>

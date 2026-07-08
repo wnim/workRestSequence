@@ -1,7 +1,12 @@
 import { create } from 'zustand';
 import { v4 as uuid } from 'uuid';
 import { arrayMove } from '@dnd-kit/sortable';
-import { LS_GIST_CONFIG, LS_WORKOUTS, LS_ACTIVE_WORKOUT } from '../utils/constants';
+import { LS_PX_PER_SECOND, LS_GIST_CONFIG, LS_WORKOUTS, LS_ACTIVE_WORKOUT } from '../utils/constants';
+
+function loadPxPerSecond() {
+  try { return JSON.parse(localStorage.getItem(LS_PX_PER_SECOND)) ?? 20; }
+  catch { return 20; }
+}
 
 function loadWorkoutsFromLS() {
   try {
@@ -17,7 +22,7 @@ function loadActiveWorkout() {
     const workouts = loadWorkoutsFromLS();
     const workout = workouts[name];
     if (!workout) return { activeWorkoutName: null, blocks: [], resizeStep: 1 };
-    return { activeWorkoutName: name, blocks: workout.blocks, resizeStep: workout.resizeStep ?? 1, pxPerSecond: workout.pxPerSecond ?? 20 };
+    return { activeWorkoutName: name, blocks: workout.blocks, resizeStep: workout.resizeStep ?? 1 };
   } catch { return { activeWorkoutName: null, blocks: [], resizeStep: 1 }; }
 }
 
@@ -42,7 +47,7 @@ const useStore = create((set, get) => ({
   ...loadActiveWorkout(),
   selectedIds: new Set(),
   clipboardBlocks: [],
-  pxPerSecond: 20,
+  pxPerSecond: loadPxPerSecond(),
   gistConfig: loadGistConfigFromLS(),
   syncStatus: 'idle',
   playState: 'idle',
@@ -143,7 +148,7 @@ const useStore = create((set, get) => ({
 
   saveWorkout: (name) => set((s) => {
     localStorage.setItem(LS_ACTIVE_WORKOUT, name);
-    return { workouts: { ...s.workouts, [name]: { name, blocks: s.blocks, resizeStep: s.resizeStep, pxPerSecond: s.pxPerSecond } }, activeWorkoutName: name };
+    return { workouts: { ...s.workouts, [name]: { name, blocks: s.blocks, resizeStep: s.resizeStep } }, activeWorkoutName: name };
   }),
 
   loadWorkout: (name) => set((s) => {
@@ -152,7 +157,7 @@ const useStore = create((set, get) => ({
     localStorage.setItem(LS_ACTIVE_WORKOUT, name);
     past = [];
     future = [];
-    return { blocks: workout.blocks, resizeStep: workout.resizeStep ?? 1, pxPerSecond: workout.pxPerSecond ?? 20, activeWorkoutName: name, selectedIds: new Set() };
+    return { blocks: workout.blocks, resizeStep: workout.resizeStep ?? 1, activeWorkoutName: name, selectedIds: new Set() };
   }),
 
   deleteWorkout: (name) => set((s) => {
@@ -182,7 +187,11 @@ const useStore = create((set, get) => ({
 
   setBlocks: (blocks) => set((s) => { pushPast(s.blocks); return { blocks }; }),
 
-  setPxPerSecond: (px) => set({ pxPerSecond: Math.max(2, Math.min(100, px)) }),
+  setPxPerSecond: (px) => set(() => {
+    const clamped = Math.max(2, Math.min(100, px));
+    try { localStorage.setItem(LS_PX_PER_SECOND, String(clamped)); } catch {}
+    return { pxPerSecond: clamped };
+  }),
   setResizeStep: (s) => set({ resizeStep: Math.max(0.1, Math.min(60, s)) }),
 
   setPlayState: (playState) => set({ playState }),
