@@ -1,4 +1,4 @@
-import { useRef, useState, useCallback } from 'react';
+import { useRef, useState, useCallback, useEffect } from 'react';
 import {
   DndContext,
   PointerSensor,
@@ -59,6 +59,7 @@ export function TimelineEditor() {
 
   const containerRef = useRef(null);
   const scrollRef = useRef(null);
+  const [scrollContainerWidth, setScrollContainerWidth] = useState(0);
   const [editingBlocks, setEditingBlocks] = useState(null);
   const [rubberBand, setRubberBand] = useState(null);
   const rubberStart = useRef(null);
@@ -66,6 +67,14 @@ export function TimelineEditor() {
   const [dragDeltaX, setDragDeltaX] = useState(0);
   const [dragDeltaY, setDragDeltaY] = useState(0);
   const [suppressTransition, setSuppressTransition] = useState(false);
+
+  useEffect(() => {
+    const el = scrollRef.current;
+    if (!el) return;
+    const ro = new ResizeObserver(([entry]) => setScrollContainerWidth(entry.contentRect.width));
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 6 } })
@@ -90,7 +99,10 @@ export function TimelineEditor() {
   }, [dragActiveId, selectedIds, blocks]);
 
   const totalSec = blocksToTotalDuration(blocks);
-  const totalWidth = totalSec * pxPerSecond + 120;
+  const contentWidth = totalSec * pxPerSecond;
+  const totalWidth = scrollContainerWidth > 0 && contentWidth <= scrollContainerWidth
+    ? scrollContainerWidth
+    : contentWidth + 120;
 
   function handleDragStart(event) {
     setDragActiveId(event.active.id);
