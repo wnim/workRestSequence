@@ -17,7 +17,7 @@ function loadActiveWorkout() {
     const workouts = loadWorkoutsFromLS();
     const workout = workouts[name];
     if (!workout) return { activeWorkoutName: null, blocks: [], resizeStep: 1 };
-    return { activeWorkoutName: name, blocks: workout.blocks, resizeStep: workout.resizeStep ?? 1 };
+    return { activeWorkoutName: name, blocks: workout.blocks, resizeStep: workout.resizeStep ?? 1, pxPerSecond: workout.pxPerSecond ?? 20 };
   } catch { return { activeWorkoutName: null, blocks: [], resizeStep: 1 }; }
 }
 
@@ -143,7 +143,7 @@ const useStore = create((set, get) => ({
 
   saveWorkout: (name) => set((s) => {
     localStorage.setItem(LS_ACTIVE_WORKOUT, name);
-    return { workouts: { ...s.workouts, [name]: { name, blocks: s.blocks, resizeStep: s.resizeStep } }, activeWorkoutName: name };
+    return { workouts: { ...s.workouts, [name]: { name, blocks: s.blocks, resizeStep: s.resizeStep, pxPerSecond: s.pxPerSecond } }, activeWorkoutName: name };
   }),
 
   loadWorkout: (name) => set((s) => {
@@ -152,7 +152,7 @@ const useStore = create((set, get) => ({
     localStorage.setItem(LS_ACTIVE_WORKOUT, name);
     past = [];
     future = [];
-    return { blocks: workout.blocks, resizeStep: workout.resizeStep ?? 1, activeWorkoutName: name, selectedIds: new Set() };
+    return { blocks: workout.blocks, resizeStep: workout.resizeStep ?? 1, pxPerSecond: workout.pxPerSecond ?? 20, activeWorkoutName: name, selectedIds: new Set() };
   }),
 
   deleteWorkout: (name) => set((s) => {

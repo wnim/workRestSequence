@@ -54,6 +54,7 @@ export function useGistSync() {
   // 3. Mark dirty immediately on change; debounce the actual Gist save
   useEffect(() => {
     if (!gistConfig?.gistId || !gistConfig?.token) return;
+    if (lastSyncedRef.current === null) return; // wait for initial Gist load
     const serialized = JSON.stringify(workouts);
     if (serialized === lastSyncedRef.current) return;
     setSyncStatus('dirty');
