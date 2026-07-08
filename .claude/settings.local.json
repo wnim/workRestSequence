@@ -30,7 +30,13 @@
       "Bash(cat ~/.claude/settings.local.json 2>/dev/null || echo \"NOT FOUND\")",
       "Bash(git -C /home/nimw/experiments/workRestSequence status --short)",
       "Bash(git -C /home/nimw/experiments/workRestSequence add src/App.jsx src/hooks/useKeyboard.js src/components/ui/KeyboardShortcutsHelp.jsx todo.md CLAUDE.md .claude/settings.json .claude/settings.local.json)",
-      "Bash(git -C /home/nimw/experiments/workRestSequence commit -m 'Add keyboard shortcuts help panel, fix audio cleanup, move undo history to refs')"
+      "Bash(git -C /home/nimw/experiments/workRestSequence commit -m 'Add keyboard shortcuts help panel, fix audio cleanup, move undo history to refs')",
+      "Bash(npx netlify *)",
+      "Bash(netlify status *)",
+      "Bash(netlify link *)",
+      "Bash(netlify sites:list)",
+      "Bash(netlify dev *)",
+      "Bash(npm install *)"
     ]
   }
 }

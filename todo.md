@@ -4,7 +4,7 @@ Work through these one at a time. After each one, mark it as done before moving 
 
 ---
 
-## 1. [ ] GitHub Gist setup — replace PAT input with Device Flow OAuth
+## 1. [x] GitHub Gist setup — replace PAT input with Device Flow OAuth
 **Difficulty: 3/5** — The reference implementation exists and can be ported directly, but involves OAuth polling, network error handling, and non-trivial UX state (waiting → success → error).
 
 The current `GistSetupModal.jsx` asks users to manually create and paste a Personal Access Token. Replace this with GitHub Device Flow OAuth: auto-request a device code, open GitHub's verification page in a new tab, display the code with a one-click-copy button, poll for the token in the background, then auto-discover and auto-select existing gists.

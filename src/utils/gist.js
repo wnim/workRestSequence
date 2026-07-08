@@ -1,3 +1,5 @@
+import { AUTH_PROXY, GIST_FILENAME } from './constants';
+
 const API = 'https://api.github.com';
 
 async function apiFetch(path, options, token) {
@@ -61,4 +63,59 @@ export function extractGistId(input) {
   if (!input) return null;
   const match = input.match(/([a-f0-9]{20,})/i);
   return match ? match[1] : null;
+}
+
+export async function requestDeviceCode(clientId) {
+  const res = await fetch(`${AUTH_PROXY}/device`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ client_id: clientId }),
+  });
+  if (!res.ok) throw new Error(`Auth proxy error ${res.status}`);
+  return res.json();
+}
+
+export function pollForToken(clientId, deviceCode, intervalSecs, signal) {
+  return new Promise((resolve, reject) => {
+    let delay = intervalSecs * 1000;
+    const attempt = async () => {
+      if (signal?.aborted) { reject(new Error('Cancelled')); return; }
+      try {
+        const res = await fetch(`${AUTH_PROXY}/token`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ client_id: clientId, device_code: deviceCode }),
+        });
+        const data = await res.json();
+        if (data.access_token) { resolve(data.access_token); return; }
+        switch (data.error) {
+          case 'authorization_pending': break;
+          case 'slow_down': delay += 5000; break;
+          case 'expired_token': reject(new Error('Code expired. Please try again.')); return;
+          case 'access_denied': reject(new Error('Access denied.')); return;
+          default: reject(new Error(data.error_description ?? data.error ?? 'Unknown error')); return;
+        }
+      } catch (err) { reject(err); return; }
+      if (!signal?.aborted) setTimeout(attempt, delay);
+    };
+    setTimeout(attempt, delay);
+  });
+}
+
+export async function findWorkoutGists(token) {
+  const res = await apiFetch('/gists?per_page=100', {}, token);
+  const gists = await res.json();
+  const results = [];
+  for (const gist of gists) {
+    const file = Object.values(gist.files).find((f) => f.filename === GIST_FILENAME);
+    if (!file) continue;
+    try {
+      const content = file.truncated
+        ? await fetch(file.raw_url).then((r) => r.text())
+        : file.content;
+      const data = JSON.parse(content);
+      if (data?.workouts) results.push({ gistId: gist.id, data });
+    } catch { /* skip unparseable */ }
+  }
+  return results;
 }

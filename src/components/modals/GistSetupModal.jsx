@@ -1,93 +1,172 @@
-import { useState } from 'react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '../ui/dialog';
+import { useState, useEffect } from 'react';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '../ui/dialog';
 import { Button } from '../ui/button';
-import { Input } from '../ui/input';
-import { Label } from '../ui/label';
 import useStore from '../../store/workoutStore';
-import { fetchGistData, createGist, extractGistId } from '../../utils/gist';
-import { GIST_FILENAME, LS_GIST_CONFIG } from '../../utils/constants';
+import { requestDeviceCode, pollForToken, findWorkoutGists, createGist } from '../../utils/gist';
+import { GITHUB_CLIENT_ID, GIST_FILENAME, LS_GIST_CONFIG } from '../../utils/constants';
 
+// phases: 'connected' | 'auth' | 'resolving' | 'error'
 export function GistSetupModal({ onClose }) {
   const setGistConfig = useStore((s) => s.setGistConfig);
   const setWorkouts = useStore((s) => s.setWorkouts);
   const gistConfig = useStore((s) => s.gistConfig);
 
-  const [token, setToken] = useState(gistConfig?.token || '');
-  const [gistInput, setGistInput] = useState(gistConfig?.gistId || '');
-  const [status, setStatus] = useState('');
-  const [loading, setLoading] = useState(false);
+  const [phase, setPhase] = useState(gistConfig?.gistId ? 'connected' : 'auth');
+  const [deviceInfo, setDeviceInfo] = useState(null);
+  const [polling, setPolling] = useState(false);
+  const [error, setError] = useState('');
+  const [copied, setCopied] = useState(false);
 
-  async function handleCreateGist() {
-    if (!token) { setStatus('Enter a PAT first.'); return; }
-    setLoading(true);
-    try {
-      const id = await createGist(token, GIST_FILENAME);
-      setGistInput(id);
-      setStatus('Gist created: ' + id);
-    } catch (e) {
-      setStatus('Error: ' + e.message);
-    } finally { setLoading(false); }
+  function handleDisconnect() {
+    localStorage.removeItem(LS_GIST_CONFIG);
+    setGistConfig(null);
+    onClose();
   }
 
-  async function handleSave() {
-    const gistId = extractGistId(gistInput);
-    if (!token || !gistId) { setStatus('Token and Gist ID are required.'); return; }
-    setLoading(true);
+  // Kick off device code request on mount
+  useEffect(() => {
+    if (phase === 'connected' || polling) return;
+    setPolling(true);
+    const abort = new AbortController();
+
+    requestDeviceCode(GITHUB_CLIENT_ID)
+      .then((info) => {
+        setDeviceInfo(info);
+        return pollForToken(GITHUB_CLIENT_ID, info.device_code, info.interval, abort.signal);
+      })
+      .then((token) => {
+        setPolling(false);
+        resolveWithToken(token);
+      })
+      .catch((err) => {
+        if (err.message === 'Cancelled') return;
+        setError(err.message);
+        setPhase('error');
+        setPolling(false);
+      });
+
+    return () => abort.abort();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Open GitHub tab AFTER the code is rendered
+  useEffect(() => {
+    if (deviceInfo?.verification_uri_complete) {
+      window.open(deviceInfo.verification_uri_complete, '_blank');
+    }
+  }, [deviceInfo]);
+
+  async function resolveWithToken(token) {
+    setPhase('resolving');
     try {
-      const data = await fetchGistData(gistId, token);
+      const found = await findWorkoutGists(token);
+      let gistId, remoteWorkouts = null;
+      if (found.length > 0) {
+        gistId = found[0].gistId;
+        remoteWorkouts = found[0].data.workouts;
+      } else {
+        gistId = await createGist(token, GIST_FILENAME);
+      }
       const cfg = { gistId, token, filename: GIST_FILENAME };
       localStorage.setItem(LS_GIST_CONFIG, JSON.stringify(cfg));
       setGistConfig(cfg);
-      // Merge: local workouts take priority over Gist (local edits are newer)
-      if (data?.workouts) setWorkouts({ ...data.workouts, ...useStore.getState().workouts });
-      setStatus('Connected!');
-      setTimeout(onClose, 800);
-    } catch (e) {
-      setStatus('Error: ' + e.message);
-    } finally { setLoading(false); }
+      if (remoteWorkouts) setWorkouts({ ...remoteWorkouts, ...useStore.getState().workouts });
+      onClose();
+    } catch (err) {
+      setError(err.message);
+      setPhase('error');
+    }
   }
 
-  const inputStyle = { background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.2)', color: 'white', marginTop: 6 };
+  function handleCopy() {
+    if (!deviceInfo?.user_code) return;
+    navigator.clipboard.writeText(deviceInfo.user_code);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  }
+
+  const dim = { color: 'rgba(255,255,255,0.5)', margin: 0, fontSize: 13 };
+  const codeStyle = {
+    fontFamily: 'monospace', fontSize: 28, fontWeight: 700, letterSpacing: 4,
+    padding: '12px 24px', borderRadius: 8, cursor: 'pointer', display: 'inline-block',
+    background: copied ? 'oklch(0.25 0.08 150)' : 'rgba(255,255,255,0.08)',
+    border: `2px solid ${copied ? 'oklch(0.55 0.18 150)' : 'rgba(255,255,255,0.15)'}`,
+    color: copied ? 'oklch(0.75 0.18 150)' : 'white',
+    transition: 'all 0.15s',
+    userSelect: 'none',
+  };
 
   return (
     <Dialog open onOpenChange={(open) => { if (!open) onClose(); }}>
       <DialogContent style={{ background: '#1a1a2e', border: '1px solid rgba(255,255,255,0.1)', color: 'white' }}>
         <DialogHeader>
-          <DialogTitle style={{ color: 'white' }}>Gist Sync Setup</DialogTitle>
+          <DialogTitle style={{ color: 'white' }}>Connect to GitHub</DialogTitle>
         </DialogHeader>
 
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 16, padding: '8px 0', fontSize: 13 }}>
-          <p style={{ color: 'rgba(255,255,255,0.5)', margin: 0 }}>
-            Create a GitHub PAT with <code>gist</code> scope, then paste it below.
-          </p>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 16, padding: '8px 0' }}>
 
-          <div>
-            <Label style={{ color: 'rgba(255,255,255,0.7)' }}>GitHub PAT</Label>
-            <Input type="text" autoComplete="off" value={token} onChange={(e) => setToken(e.target.value)} placeholder="ghp_..." style={inputStyle} />
-          </div>
-
-          <div>
-            <Label style={{ color: 'rgba(255,255,255,0.7)' }}>Gist ID or URL</Label>
-            <div style={{ display: 'flex', gap: 8, alignItems: 'flex-end' }}>
-              <Input value={gistInput} onChange={(e) => setGistInput(e.target.value)} placeholder="Gist ID or URL" style={{ ...inputStyle, flex: 1 }} />
-              <Button variant="outline" onClick={handleCreateGist} disabled={loading}
-                style={{ background: 'transparent', borderColor: 'rgba(255,255,255,0.2)', color: 'white', marginTop: 6 }}>
-                Create new
+          {phase === 'connected' && (
+            <>
+              <p style={dim}>Connected to GitHub. Your workouts sync automatically.</p>
+              <p style={{ ...dim, fontSize: 11, wordBreak: 'break-all' }}>Gist: {gistConfig?.gistId}</p>
+              <Button
+                variant="outline"
+                onClick={handleDisconnect}
+                style={{ background: 'transparent', borderColor: 'oklch(0.45 0.2 35)', color: 'oklch(0.65 0.22 35)', alignSelf: 'flex-start' }}
+              >
+                Disconnect from GitHub
               </Button>
-            </div>
-          </div>
+            </>
+          )}
 
-          {status && <p style={{ color: status.startsWith('Error') ? 'oklch(0.65 0.22 35)' : 'oklch(0.7 0.15 150)', margin: 0 }}>{status}</p>}
+          {phase === 'auth' && !deviceInfo && (
+            <p style={dim}>Requesting a code from GitHub…</p>
+          )}
+
+          {phase === 'auth' && deviceInfo && (
+            <>
+              <div>
+                <p style={{ ...dim, marginBottom: 8 }}>1. Copy this code:</p>
+                <div style={{ textAlign: 'center' }}>
+                  <span style={codeStyle} onClick={handleCopy} title="Click to copy">
+                    {deviceInfo.user_code}
+                  </span>
+                  <p style={{ ...dim, marginTop: 6, fontSize: 11 }}>
+                    {copied ? 'Copied!' : 'Click the code to copy it'}
+                  </p>
+                </div>
+              </div>
+
+              <div>
+                <p style={{ ...dim, marginBottom: 6 }}>2. Paste it on this page (opened automatically):</p>
+                <a
+                  href={deviceInfo.verification_uri_complete ?? deviceInfo.verification_uri}
+                  target="_blank" rel="noopener noreferrer"
+                  style={{ color: 'oklch(0.65 0.18 250)', fontSize: 13, wordBreak: 'break-all' }}
+                >
+                  {deviceInfo.verification_uri_complete ?? deviceInfo.verification_uri}
+                </a>
+              </div>
+
+              <p style={dim}>Waiting for you to authorize on GitHub…</p>
+            </>
+          )}
+
+          {phase === 'resolving' && (
+            <p style={dim}>Authorized! Finding your workout gist…</p>
+          )}
+
+          {phase === 'error' && (
+            <>
+              <p style={{ color: 'oklch(0.65 0.22 35)', margin: 0, fontSize: 13 }}>{error}</p>
+              <Button variant="outline" onClick={onClose}
+                style={{ background: 'transparent', borderColor: 'rgba(255,255,255,0.2)', color: 'white', alignSelf: 'flex-start' }}>
+                Close
+              </Button>
+            </>
+          )}
+
         </div>
-
-        <DialogFooter>
-          <Button variant="outline" onClick={onClose} style={{ background: 'transparent', borderColor: 'rgba(255,255,255,0.2)', color: 'white' }}>
-            Cancel
-          </Button>
-          <Button onClick={handleSave} disabled={loading} style={{ background: 'oklch(0.55 0.22 35)' }}>
-            {loading ? 'Connecting…' : 'Save'}
-          </Button>
-        </DialogFooter>
       </DialogContent>
     </Dialog>
   );

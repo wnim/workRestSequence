@@ -11,3 +11,5 @@ export const LS_WORKOUTS = 'pulse_timer_workouts';
 export const LS_ACTIVE_WORKOUT = 'pulse_timer_active_workout';
 export const LS_SAVE_PENDING = 'pulse_timer_save_pending';
 export const GIST_FILENAME = 'pulse_timer.json';
+export const GITHUB_CLIENT_ID = 'Ov23liCVaKhUrrINyzqw';
+export const AUTH_PROXY = '/.netlify/functions/github-auth';
