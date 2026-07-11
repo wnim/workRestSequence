@@ -58,7 +58,7 @@ body {
 
 #root {
   width: 100%;
-  height: 100vh;
+  height: 100dvh;
   display: flex;
   flex-direction: column;
 }
@@ -138,6 +138,12 @@ body {
   --sidebar-accent-foreground: oklch(0.985 0 0);
   --sidebar-border: oklch(1 0 0 / 10%);
   --sidebar-ring: oklch(0.556 0 0);
+}
+
+@media (max-width: 600px) {
+  .toolbar-desktop-only {
+    display: none !important;
+  }
 }
 
 @layer base {

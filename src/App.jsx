@@ -116,7 +116,7 @@ export default function App() {
   const btnBase = { background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.18)', color: 'rgba(255,255,255,0.85)', fontSize: 12, height: 30, padding: '0 12px' };
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', height: '100vh', background: '#1a1b2e', color: 'white', overflow: 'hidden' }}>
+    <div style={{ display: 'flex', flexDirection: 'column', height: '100dvh', background: '#1a1b2e', color: 'white', overflow: 'hidden' }}>
       {/* Toolbar */}
       <div style={{
         display: 'flex', alignItems: 'center', gap: 10, padding: '8px 16px',
@@ -155,15 +155,15 @@ export default function App() {
           </div>
         )}
 
-        <Button variant="outline" style={btnBase} onClick={() => setShowCode(true)}>{ '{…}' }</Button>
+        <Button variant="outline" className="toolbar-desktop-only" style={btnBase} onClick={() => setShowCode(true)}>{ '{…}' }</Button>
 
         <div style={{ flex: 1 }} />
 
-        <span style={{ fontSize: 11, color: 'rgba(255,255,255,0.5)', fontFamily: 'monospace' }}>
+        <span className="toolbar-desktop-only" style={{ fontSize: 11, color: 'rgba(255,255,255,0.5)', fontFamily: 'monospace' }}>
           {totalSec > 0 ? msToDisplay(totalSec * 1000) : '—'}
         </span>
 
-        <label style={sliderLabel}>
+        <label className="toolbar-desktop-only" style={sliderLabel}>
           Snap
           <input type="range" min={0} max={1} step={0.001} value={snapToSlider(resizeStep)}
             onChange={(e) => setResizeStep(sliderToSnap(Number(e.target.value)))} style={{ width: 70 }} />
@@ -171,12 +171,14 @@ export default function App() {
         </label>
 
         <button
+          className="toolbar-desktop-only"
           onClick={() => fitToScreen(totalSec)}
           title="Fit to screen (Ctrl+Scroll to zoom)"
           style={{ background: 'none', border: '1px solid rgba(255,255,255,0.18)', borderRadius: 4, cursor: 'pointer', color: 'rgba(255,255,255,0.55)', fontSize: 12, padding: '1px 8px', lineHeight: 1.4 }}
         >⟷</button>
 
         <Button
+          className="toolbar-desktop-only"
           onClick={handleSave}
           disabled={!canSave && (syncStatus === 'saving' || syncStatus === 'loading')}
           style={{
@@ -192,7 +194,7 @@ export default function App() {
           {saveState.label}
         </Button>
 
-        <Button variant="outline" style={btnBase} onClick={() => setShowGist(true)}>
+        <Button variant="outline" className="toolbar-desktop-only" style={btnBase} onClick={() => setShowGist(true)}>
           {gistConfig?.gistId ? 'Gist ✓' : 'Gist Setup'}
         </Button>
       </div>
@@ -220,9 +222,9 @@ export default function App() {
           display: 'flex', alignItems: 'center', gap: 10, padding: '10px 16px',
           background: '#22243c', borderTop: '1px solid rgba(255,255,255,0.1)',
         }}>
-          <Button onClick={() => addBlock('work')} style={{ background: 'oklch(0.58 0.20 35)', color: 'white', fontSize: 12, height: 30, padding: '0 12px' }}>+ Work</Button>
-          <Button onClick={() => addBlock('rest')} style={{ background: 'oklch(0.32 0.06 250)', color: 'rgba(255,255,255,0.85)', border: '1px solid rgba(255,255,255,0.2)', fontSize: 12, height: 30, padding: '0 12px' }}>+ Rest</Button>
-          <Button onClick={() => setBlocks([])} style={{ fontSize: 12, height: 30, padding: '0 12px', background: 'transparent', color: 'rgba(255,255,255,0.5)', border: '1px solid rgba(255,255,255,0.18)' }}>Clear</Button>
+          <Button className="toolbar-desktop-only" onClick={() => addBlock('work')} style={{ background: 'oklch(0.58 0.20 35)', color: 'white', fontSize: 12, height: 30, padding: '0 12px' }}>+ Work</Button>
+          <Button className="toolbar-desktop-only" onClick={() => addBlock('rest')} style={{ background: 'oklch(0.32 0.06 250)', color: 'rgba(255,255,255,0.85)', border: '1px solid rgba(255,255,255,0.2)', fontSize: 12, height: 30, padding: '0 12px' }}>+ Rest</Button>
+          <Button className="toolbar-desktop-only" onClick={() => setBlocks([])} style={{ fontSize: 12, height: 30, padding: '0 12px', background: 'transparent', color: 'rgba(255,255,255,0.5)', border: '1px solid rgba(255,255,255,0.18)' }}>Clear</Button>
           <div style={{ flex: 1 }} />
           <Button
             onClick={playback.play}
