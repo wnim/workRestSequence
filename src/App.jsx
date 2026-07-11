@@ -28,20 +28,18 @@ export default function App() {
   const blocks = useStore((s) => s.blocks);
   const addBlock = useStore((s) => s.addBlock);
   const setBlocks = useStore((s) => s.setBlocks);
-  const setPxPerSecond = useStore((s) => s.setPxPerSecond);
   const resizeStep = useStore((s) => s.resizeStep);
   const setResizeStep = useStore((s) => s.setResizeStep);
   const syncStatus = useStore((s) => s.syncStatus);
   const gistConfig = useStore((s) => s.gistConfig);
   const activeWorkoutName = useStore((s) => s.activeWorkoutName);
-
   const workouts = useStore((s) => s.workouts);
   const renameWorkout = useStore((s) => s.renameWorkout);
   const saveWorkout = useStore((s) => s.saveWorkout);
   const loadWorkout = useStore((s) => s.loadWorkout);
 
-  const contentRef = useRef(null);
   const pickerRef = useRef(null);
+  const timelineRef = useRef(null);
 
   const [showGist, setShowGist] = useState(false);
   const [showCode, setShowCode] = useState(false);
@@ -57,10 +55,15 @@ export default function App() {
     onPlay: playback.play,
     onPause: playback.togglePause,
     onStop: playback.stop,
+    onRestart: () => playback.seek(0),
     onHelp: () => setShowHelp((v) => !v),
     onSave: handleSave,
     onSeekBy: (delta) => playback.seek(playback.currentPositionMs + delta),
     onOpenPicker: () => pickerRef.current?.open(),
+    onZoomToSelection: () => timelineRef.current?.zoomToSelection(),
+    onZoomIn: () => timelineRef.current?.zoomBy(1.4),
+    onZoomOut: () => timelineRef.current?.zoomBy(1 / 1.4),
+    onFitToScreen: () => timelineRef.current?.fitToScreen(),
   });
 
   const totalSec = blocksToTotalDuration(blocks);
@@ -87,19 +90,12 @@ export default function App() {
     if (gistConfig?.gistId && gistConfig?.token) saveNow();
   }
 
-  function fitToScreen(sec) {
-    if (!sec || !contentRef.current) return;
-    const availableWidth = contentRef.current.clientWidth - 32;
-    setPxPerSecond(availableWidth / (sec * 1.1));
-  }
-
   function handleLoadWorkout(name) {
     loadWorkout(name);
     const workout = workouts[name];
     if (workout?.blocks?.length) {
       const sec = workout.blocks.reduce((s, b) => s + b.duration, 0);
-      // Use rAF so the DOM has settled after the state update before measuring
-      requestAnimationFrame(() => fitToScreen(sec));
+      requestAnimationFrame(() => timelineRef.current?.fitToScreen(sec));
     }
   }
 
@@ -147,7 +143,7 @@ export default function App() {
             <WorkoutPicker ref={pickerRef} onLoad={handleLoadWorkout} />
             <button
               onClick={() => { setRenameValue(activeWorkoutName ?? ''); setIsRenaming(true); }}
-              title="Rename"
+              title="Rename workout"
               style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'rgba(255,255,255,0.3)', fontSize: 12, padding: '2px 4px', lineHeight: 1 }}
             >
               ✎
@@ -155,7 +151,7 @@ export default function App() {
           </div>
         )}
 
-        <Button variant="outline" className="toolbar-desktop-only" style={btnBase} onClick={() => setShowCode(true)}>{ '{…}' }</Button>
+        <Button variant="outline" className="toolbar-desktop-only" title="Edit workout as JSON" style={btnBase} onClick={() => setShowCode(true)}>{ '{…}' }</Button>
 
         <div style={{ flex: 1 }} />
 
@@ -170,15 +166,9 @@ export default function App() {
           <span style={{ fontFamily: 'monospace', minWidth: 32 }}>{resizeStep % 1 === 0 ? resizeStep : resizeStep.toFixed(1)}s</span>
         </label>
 
-        <button
-          className="toolbar-desktop-only"
-          onClick={() => fitToScreen(totalSec)}
-          title="Fit to screen (Ctrl+Scroll to zoom)"
-          style={{ background: 'none', border: '1px solid rgba(255,255,255,0.18)', borderRadius: 4, cursor: 'pointer', color: 'rgba(255,255,255,0.55)', fontSize: 12, padding: '1px 8px', lineHeight: 1.4 }}
-        >⟷</button>
-
         <Button
           className="toolbar-desktop-only"
+          title="Save workout (Ctrl+S)"
           onClick={handleSave}
           disabled={!canSave && (syncStatus === 'saving' || syncStatus === 'loading')}
           style={{
@@ -194,13 +184,13 @@ export default function App() {
           {saveState.label}
         </Button>
 
-        <Button variant="outline" className="toolbar-desktop-only" style={btnBase} onClick={() => setShowGist(true)}>
+        <Button variant="outline" className="toolbar-desktop-only" title="Configure Gist sync" style={btnBase} onClick={() => setShowGist(true)}>
           {gistConfig?.gistId ? 'Gist ✓' : 'Gist Setup'}
         </Button>
       </div>
 
       {/* Content — timeline centered vertically */}
-      <div ref={contentRef} style={{ flex: 1, overflow: 'hidden', display: 'flex', flexDirection: 'column', justifyContent: 'center', padding: '16px' }}>
+      <div style={{ flex: 1, overflow: 'hidden', display: 'flex', flexDirection: 'column', justifyContent: 'center', padding: '16px' }}>
         {blocks.length === 0 ? (
           <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 16 }}>
             <p style={{ color: 'rgba(255,255,255,0.4)', fontFamily: 'monospace', fontSize: 13, margin: 0 }}>
@@ -212,7 +202,7 @@ export default function App() {
             </div>
           </div>
         ) : (
-          <TimelineEditor />
+          <TimelineEditor ref={timelineRef} />
         )}
       </div>
 
@@ -222,11 +212,12 @@ export default function App() {
           display: 'flex', alignItems: 'center', gap: 10, padding: '10px 16px',
           background: '#22243c', borderTop: '1px solid rgba(255,255,255,0.1)',
         }}>
-          <Button className="toolbar-desktop-only" onClick={() => addBlock('work')} style={{ background: 'oklch(0.58 0.20 35)', color: 'white', fontSize: 12, height: 30, padding: '0 12px' }}>+ Work</Button>
-          <Button className="toolbar-desktop-only" onClick={() => addBlock('rest')} style={{ background: 'oklch(0.32 0.06 250)', color: 'rgba(255,255,255,0.85)', border: '1px solid rgba(255,255,255,0.2)', fontSize: 12, height: 30, padding: '0 12px' }}>+ Rest</Button>
-          <Button className="toolbar-desktop-only" onClick={() => setBlocks([])} style={{ fontSize: 12, height: 30, padding: '0 12px', background: 'transparent', color: 'rgba(255,255,255,0.5)', border: '1px solid rgba(255,255,255,0.18)' }}>Clear</Button>
+          <Button className="toolbar-desktop-only" title="Add work block (W)" onClick={() => addBlock('work')} style={{ background: 'oklch(0.58 0.20 35)', color: 'white', fontSize: 12, height: 30, padding: '0 12px' }}>+ Work</Button>
+          <Button className="toolbar-desktop-only" title="Add rest block (R)" onClick={() => addBlock('rest')} style={{ background: 'oklch(0.32 0.06 250)', color: 'rgba(255,255,255,0.85)', border: '1px solid rgba(255,255,255,0.2)', fontSize: 12, height: 30, padding: '0 12px' }}>+ Rest</Button>
+          <Button className="toolbar-desktop-only" title="Remove all blocks" onClick={() => setBlocks([])} style={{ fontSize: 12, height: 30, padding: '0 12px', background: 'transparent', color: 'rgba(255,255,255,0.5)', border: '1px solid rgba(255,255,255,0.18)' }}>Clear</Button>
           <div style={{ flex: 1 }} />
           <Button
+            title="Play workout (Space / K)"
             onClick={playback.play}
             disabled={playState !== 'idle' || blocks.length === 0}
             style={{ background: 'oklch(0.58 0.18 150)', color: 'white', fontSize: 13, height: 34, padding: '0 20px' }}

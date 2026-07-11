@@ -96,6 +96,8 @@ const useStore = create((set, get) => ({
 
   setSelectedIds: (set_) => set({ selectedIds: set_ }),
 
+  selectAll: () => set((s) => ({ selectedIds: new Set(s.blocks.map((b) => b.id)) })),
+
   toggleSelected: (id) => set((s) => {
     const next = new Set(s.selectedIds);
     if (next.has(id)) next.delete(id); else next.add(id);

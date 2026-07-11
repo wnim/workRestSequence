@@ -1,4 +1,4 @@
-import { useRef, useState, useCallback, useEffect } from 'react';
+import { useRef, useState, useCallback, useEffect, forwardRef, useImperativeHandle } from 'react';
 import {
   DndContext,
   PointerSensor,
@@ -49,7 +49,7 @@ function buildRulerTicks(totalSec, pxPerSecond) {
   return ticks;
 }
 
-export function TimelineEditor() {
+export const TimelineEditor = forwardRef(function TimelineEditor(props, ref) {
   const blocks = useStore((s) => s.blocks);
   const pxPerSecond = useStore((s) => s.pxPerSecond);
   const setPxPerSecond = useStore((s) => s.setPxPerSecond);
@@ -72,6 +72,43 @@ export function TimelineEditor() {
   const [suppressTransition, setSuppressTransition] = useState(false);
 
   useEffect(() => { pxPerSecondRef.current = pxPerSecond; }, [pxPerSecond]);
+
+  const zoomToSelection = useCallback(() => {
+    const selected = blocks.filter((b) => selectedIds.has(b.id));
+    if (selected.length === 0 || !scrollRef.current) return;
+    const indices = selected.map((b) => blocks.findIndex((bl) => bl.id === b.id));
+    const minIdx = Math.min(...indices);
+    const maxIdx = Math.max(...indices);
+    const startSec = blockStartTime(blocks, minIdx);
+    const endSec = blockStartTime(blocks, maxIdx) + blocks[maxIdx].duration;
+    const spanSec = endSec - startSec;
+    if (spanSec <= 0) return;
+    const availableWidth = scrollRef.current.clientWidth;
+    const newPx = Math.max(2, Math.min(100, availableWidth / spanSec));
+    pendingScrollRef.current = startSec * newPx;
+    setPxPerSecond(newPx);
+  }, [blocks, selectedIds, setPxPerSecond]);
+
+  const fitToScreen = useCallback((sec) => {
+    const totalS = sec != null ? sec : blocksToTotalDuration(blocks);
+    if (!totalS || !scrollRef.current) return;
+    const availableWidth = scrollRef.current.clientWidth;
+    const newPx = Math.max(2, Math.min(100, availableWidth / (totalS * 1.1)));
+    pendingScrollRef.current = 0;
+    setPxPerSecond(newPx);
+  }, [blocks, setPxPerSecond]);
+
+  const zoomBy = useCallback((factor) => {
+    const el = scrollRef.current;
+    if (!el) return;
+    const cur = pxPerSecondRef.current;
+    const timeAtCenter = (el.scrollLeft + el.clientWidth / 2) / cur;
+    const newPx = Math.max(2, Math.min(100, cur * factor));
+    pendingScrollRef.current = Math.max(0, timeAtCenter * newPx - el.clientWidth / 2);
+    setPxPerSecond(newPx);
+  }, [setPxPerSecond]);
+
+  useImperativeHandle(ref, () => ({ fitToScreen, zoomToSelection, zoomBy }), [fitToScreen, zoomToSelection, zoomBy]);
 
   useEffect(() => {
     const el = scrollRef.current;
@@ -230,12 +267,36 @@ export function TimelineEditor() {
 
   const ticks = buildRulerTicks(totalSec, pxPerSecond);
 
+  const zoomBtnStyle = (disabled) => ({
+    background: 'none', border: 'none', borderRadius: 3,
+    color: disabled ? 'rgba(255,255,255,0.2)' : 'rgba(255,255,255,0.65)',
+    cursor: disabled ? 'default' : 'pointer',
+    width: 24, height: 22, padding: 0, fontSize: 14, lineHeight: 1,
+    display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: 'monospace',
+  });
+
   return (
     <div style={{
+      position: 'relative',
       display: 'flex', flexDirection: 'column', width: '100%',
       background: '#14152a', borderRadius: 8, border: '1px solid rgba(255,255,255,0.1)',
       overflow: 'hidden',
     }}>
+      {/* Floating zoom toolbar */}
+      <div style={{
+        position: 'absolute', top: RULER_HEIGHT + 6, left: 8, zIndex: 20,
+        display: 'flex', gap: 2, alignItems: 'center',
+        background: 'rgba(14,15,32,0.82)', borderRadius: 5, padding: 3,
+        border: '1px solid rgba(255,255,255,0.1)',
+        backdropFilter: 'blur(6px)',
+      }}>
+        <button style={zoomBtnStyle(false)} title="Zoom out (Ctrl+−)" onClick={() => zoomBy(1 / 1.4)}>−</button>
+        <button style={zoomBtnStyle(false)} title="Zoom in (Ctrl++)" onClick={() => zoomBy(1.4)}>+</button>
+        <div style={{ width: 1, alignSelf: 'stretch', background: 'rgba(255,255,255,0.12)', margin: '1px 2px' }} />
+        <button style={zoomBtnStyle(false)} title="Fit all to screen (Ctrl+0)" onClick={() => fitToScreen()}>⟷</button>
+        <button style={zoomBtnStyle(selectedIds.size === 0)} title="Zoom to selection (Z)" onClick={zoomToSelection} disabled={selectedIds.size === 0}>⊡</button>
+      </div>
+
       {/* Scrollable container: ruler + canvas scroll together */}
       <div ref={scrollRef} style={{ overflowX: 'auto', overflowY: 'hidden', width: '100%' }}>
         {/* Ruler */}
@@ -316,4 +377,4 @@ export function TimelineEditor() {
       )}
     </div>
   );
-}
+});

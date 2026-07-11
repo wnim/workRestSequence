@@ -5,6 +5,7 @@ const SHORTCUTS = [
     topic: 'Playback',
     items: [
       { keys: ['Space'], description: 'Play / Pause' },
+      { keys: ['R'], description: 'Restart' },
       { keys: ['Esc'], description: 'Stop' },
       { keys: ['←', '→'], description: 'Seek ±5 s' },
       { keys: ['Shift', '←', '→'], description: 'Seek ±10 s' },
@@ -13,14 +14,21 @@ const SHORTCUTS = [
   {
     topic: 'Navigation',
     items: [
-      { keys: ['Ctrl', 'Scroll'], description: 'Zoom in / out' },
+      { keys: ['Ctrl', '+'], description: 'Zoom in' },
+      { keys: ['Ctrl', '−'], description: 'Zoom out' },
+      { keys: ['Ctrl', '0'], description: 'Fit to screen' },
+      { keys: ['Ctrl', 'Scroll'], description: 'Zoom (cursor-anchored)' },
       { keys: ['Scroll'], description: 'Pan timeline' },
+      { keys: ['Z'], description: 'Zoom to selection' },
     ],
   },
   {
     topic: 'Editing',
     items: [
+      { keys: ['W'], description: 'Add work block' },
+      { keys: ['R'], description: 'Add rest block' },
       { keys: ['Del'], description: 'Delete selected' },
+      { keys: ['Ctrl', 'A'], description: 'Select all' },
       { keys: ['Ctrl', 'C'], description: 'Copy' },
       { keys: ['Ctrl', 'V'], description: 'Paste' },
       { keys: ['Ctrl', 'Z'], description: 'Undo' },

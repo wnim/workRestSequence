@@ -99,6 +99,7 @@ export const WorkoutPicker = forwardRef(function WorkoutPicker({ onLoad }, ref) 
     <div ref={containerRef} style={{ position: 'relative' }}>
       <button
         onClick={() => { setOpen((v) => !v); setHighlightedIndex(null); }}
+        title="Open workout list (/)"
         style={{
           background: open ? 'rgba(255,255,255,0.08)' : 'none',
           border: 'none', cursor: 'pointer',

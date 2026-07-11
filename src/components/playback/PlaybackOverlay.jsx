@@ -28,6 +28,7 @@ export function PlaybackOverlay({ playback }) {
         alignItems: 'center',
         justifyContent: 'center',
         fontFamily: 'monospace',
+        background: '#0a0a0f',
       }}
     >
       {/* Cross-fade between work/rest backgrounds via opacity to avoid CSS hue interpolation
@@ -66,6 +67,7 @@ export function PlaybackOverlay({ playback }) {
         <div style={{ display: 'flex', gap: 12, marginTop: 32 }}>
           <Button
             variant="outline"
+            title="Pause / Resume (Space / K)"
             onClick={togglePause}
             style={{ background: 'rgba(255,255,255,0.1)', border: '1px solid rgba(255,255,255,0.3)', color: 'white' }}
           >
@@ -73,6 +75,7 @@ export function PlaybackOverlay({ playback }) {
           </Button>
           <Button
             variant="outline"
+            title="Restart from beginning (R)"
             onClick={() => seek(0)}
             style={{ background: 'rgba(255,255,255,0.1)', border: '1px solid rgba(255,255,255,0.3)', color: 'white' }}
           >
@@ -80,6 +83,7 @@ export function PlaybackOverlay({ playback }) {
           </Button>
           <Button
             variant="outline"
+            title="Stop playback (Esc)"
             onClick={stop}
             style={{ background: 'rgba(255,255,255,0.1)', border: '1px solid rgba(255,255,255,0.3)', color: 'white' }}
           >
