@@ -6,6 +6,8 @@ const SHORTCUTS = [
     items: [
       { keys: ['Space'], description: 'Play / Pause' },
       { keys: ['Esc'], description: 'Stop' },
+      { keys: ['←', '→'], description: 'Seek ±5 s' },
+      { keys: ['Shift', '←', '→'], description: 'Seek ±10 s' },
     ],
   },
   {

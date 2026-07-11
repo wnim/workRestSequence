@@ -36,7 +36,12 @@
       "Bash(netlify link *)",
       "Bash(netlify sites:list)",
       "Bash(netlify dev *)",
-      "Bash(npm install *)"
+      "Bash(npm install *)",
+      "Skill(run)",
+      "Skill(run:*)",
+      "Bash(cat /tmp/vite-wrs.log)",
+      "Read(//tmp/**)",
+      "Bash(chromium-cli --session wrs)"
     ]
   }
 }

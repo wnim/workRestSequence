@@ -129,6 +129,42 @@ export function usePlayback() {
     else if (playState === 'paused') resume();
   }, [playState, pause, resume]);
 
+  const seek = useCallback((targetMs) => {
+    const state = useStore.getState();
+    if (state.playState === 'idle') return;
+    const total = state.blocks.reduce((s, b) => s + b.duration, 0) * 1000;
+    const clamped = Math.max(0, Math.min(targetMs, total));
+    const now = Date.now();
+    const newStart = now - clamped;
+    setPlayStartWallTime(newStart);
+    setPausedDuration(0);
+    setCurrentPositionMs(clamped);
+    if (state.playState === 'playing') {
+      scheduleCues(newStart, clamped, 0);
+      startRaf(newStart, 0);
+    } else {
+      setPausedAt(now);
+    }
+  }, [setPlayStartWallTime, setPausedDuration, setPausedAt, scheduleCues, startRaf]);
+
+  // Scrub API: freeze the engine during drag, commit on release.
+  // beginScrub stops RAF + cues without changing playState.
+  // scrubTo updates only the visual position — no audio, no RAF.
+  // endScrub commits with a real seek, restarting RAF/cues if playing.
+  const beginScrub = useCallback(() => {
+    clearCues();
+    cancelAnimationFrame(rafRef.current);
+  }, [clearCues]);
+
+  const scrubTo = useCallback((targetMs) => {
+    const total = useStore.getState().blocks.reduce((s, b) => s + b.duration, 0) * 1000;
+    setCurrentPositionMs(Math.max(0, Math.min(targetMs, total)));
+  }, []);
+
+  const endScrub = useCallback((targetMs) => {
+    seek(targetMs);
+  }, [seek]);
+
   useEffect(() => () => { clearCues(); cancelAnimationFrame(rafRef.current); }, [clearCues]);
 
   const totalMs = blocks.reduce((s, b) => s + b.duration, 0) * 1000;
@@ -151,5 +187,9 @@ export function usePlayback() {
     resume,
     stop,
     togglePause,
+    seek,
+    beginScrub,
+    scrubTo,
+    endScrub,
   };
 }

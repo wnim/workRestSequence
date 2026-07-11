@@ -6,7 +6,7 @@ import { useKeyboard } from './hooks/useKeyboard';
 import { TimelineEditor } from './components/timeline/TimelineEditor';
 import { PlaybackOverlay } from './components/playback/PlaybackOverlay';
 import { GistSetupModal } from './components/modals/GistSetupModal';
-import { WorkoutManagerModal } from './components/modals/WorkoutManagerModal';
+import { WorkoutPicker } from './components/ui/WorkoutPicker';
 import { CodeEditorModal } from './components/modals/CodeEditorModal';
 import { Button } from './components/ui/button';
 import { Input } from './components/ui/input';
@@ -43,7 +43,6 @@ export default function App() {
   const contentRef = useRef(null);
 
   const [showGist, setShowGist] = useState(false);
-  const [showManager, setShowManager] = useState(false);
   const [showCode, setShowCode] = useState(false);
   const [showHelp, setShowHelp] = useState(false);
   const [isRenaming, setIsRenaming] = useState(false);
@@ -59,6 +58,7 @@ export default function App() {
     onStop: playback.stop,
     onHelp: () => setShowHelp((v) => !v),
     onSave: handleSave,
+    onSeekBy: (delta) => playback.seek(playback.currentPositionMs + delta),
   });
 
   const totalSec = blocksToTotalDuration(blocks);
@@ -102,6 +102,15 @@ export default function App() {
   }
 
   const sliderLabel = { fontSize: 11, color: 'rgba(255,255,255,0.55)', display: 'flex', alignItems: 'center', gap: 6 };
+
+  const SNAP_MIN = 0.1, SNAP_MAX = 30;
+  function snapToSlider(v) { return Math.log(v / SNAP_MIN) / Math.log(SNAP_MAX / SNAP_MIN); }
+  function sliderToSnap(t) {
+    const raw = SNAP_MIN * Math.pow(SNAP_MAX / SNAP_MIN, t);
+    if (raw < 1) return Math.round(raw * 10) / 10;
+    if (raw < 5) return Math.round(raw * 2) / 2;
+    return Math.round(raw);
+  }
   const btnBase = { background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.18)', color: 'rgba(255,255,255,0.85)', fontSize: 12, height: 30, padding: '0 12px' };
 
   return (
@@ -132,10 +141,8 @@ export default function App() {
             style={{ width: 160, height: 28, fontSize: 13, fontFamily: 'monospace', background: 'rgba(255,255,255,0.07)', border: '1px solid rgba(255,255,255,0.25)', color: 'white' }}
           />
         ) : (
-          <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-            <span style={{ fontSize: 13, fontFamily: 'monospace', color: 'rgba(255,255,255,0.75)' }}>
-              {activeWorkoutName ?? 'Untitled'}
-            </span>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+            <WorkoutPicker onLoad={handleLoadWorkout} />
             <button
               onClick={() => { setRenameValue(activeWorkoutName ?? ''); setIsRenaming(true); }}
               title="Rename"
@@ -146,7 +153,6 @@ export default function App() {
           </div>
         )}
 
-        <Button variant="outline" style={btnBase} onClick={() => setShowManager(true)}>Workouts</Button>
         <Button variant="outline" style={btnBase} onClick={() => setShowCode(true)}>{ '{…}' }</Button>
 
         <div style={{ flex: 1 }} />
@@ -157,8 +163,8 @@ export default function App() {
 
         <label style={sliderLabel}>
           Snap
-          <input type="range" min={0.1} max={30} step={0.1} value={resizeStep}
-            onChange={(e) => setResizeStep(Number(e.target.value))} style={{ width: 70 }} />
+          <input type="range" min={0} max={1} step={0.001} value={snapToSlider(resizeStep)}
+            onChange={(e) => setResizeStep(sliderToSnap(Number(e.target.value)))} style={{ width: 70 }} />
           <span style={{ fontFamily: 'monospace', minWidth: 32 }}>{resizeStep % 1 === 0 ? resizeStep : resizeStep.toFixed(1)}s</span>
         </label>
 
@@ -228,7 +234,6 @@ export default function App() {
 
       {playState !== 'idle' && <PlaybackOverlay playback={playback} />}
       {showGist && <GistSetupModal onClose={() => setShowGist(false)} />}
-      {showManager && <WorkoutManagerModal onClose={() => setShowManager(false)} onLoad={handleLoadWorkout} />}
       {showCode && <CodeEditorModal onClose={() => setShowCode(false)} />}
       <KeyboardShortcutsHelp open={showHelp} onClose={() => setShowHelp(false)} />
     </div>

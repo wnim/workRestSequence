@@ -5,7 +5,7 @@ function key(e, letter, code) {
   return /^[a-z]$/i.test(e.key) ? e.key.toLowerCase() === letter : e.code === code;
 }
 
-export function useKeyboard({ onPlay, onPause, onStop, onHelp, onSave } = {}) {
+export function useKeyboard({ onPlay, onPause, onStop, onHelp, onSave, onSeekBy } = {}) {
   const removeBlocks = useStore((s) => s.removeBlocks);
   const selectedIds = useStore((s) => s.selectedIds);
   const copySelection = useStore((s) => s.copySelection);
@@ -26,6 +26,8 @@ export function useKeyboard({ onPlay, onPause, onStop, onHelp, onSave } = {}) {
       if (playState !== 'idle') {
         if (e.code === 'Space') { e.preventDefault(); onPause?.(); return; }
         if (e.code === 'Escape') { onStop?.(); return; }
+        if (e.code === 'ArrowRight') { e.preventDefault(); onSeekBy?.(e.shiftKey ? 10000 : 5000); return; }
+        if (e.code === 'ArrowLeft')  { e.preventDefault(); onSeekBy?.(e.shiftKey ? -10000 : -5000); return; }
         return;
       }
 
@@ -50,5 +52,5 @@ export function useKeyboard({ onPlay, onPause, onStop, onHelp, onSave } = {}) {
 
     window.addEventListener('keydown', handler);
     return () => window.removeEventListener('keydown', handler);
-  }, [selectedIds, playState, removeBlocks, copySelection, pasteBlocks, undo, redo, onPlay, onPause, onStop, onHelp, onSave]);
+  }, [selectedIds, playState, removeBlocks, copySelection, pasteBlocks, undo, redo, onPlay, onPause, onStop, onHelp, onSave, onSeekBy]);
 }

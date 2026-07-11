@@ -6,7 +6,7 @@ import { Button } from '../ui/button';
 export function PlaybackOverlay({ playback }) {
   const blocks = useStore((s) => s.blocks);
   const playState = useStore((s) => s.playState);
-  const { currentPositionMs, blockIndex, blockElapsedMs, totalMs, togglePause, stop } = playback;
+  const { currentPositionMs, blockIndex, blockElapsedMs, totalMs, togglePause, stop, seek, beginScrub, scrubTo, endScrub } = playback;
 
   if (playState === 'idle') return null;
 
@@ -59,6 +59,13 @@ export function PlaybackOverlay({ playback }) {
         </Button>
         <Button
           variant="outline"
+          onClick={() => seek(0)}
+          style={{ background: 'rgba(255,255,255,0.1)', border: '1px solid rgba(255,255,255,0.3)', color: 'white' }}
+        >
+          Restart
+        </Button>
+        <Button
+          variant="outline"
           onClick={stop}
           style={{ background: 'rgba(255,255,255,0.1)', border: '1px solid rgba(255,255,255,0.3)', color: 'white' }}
         >
@@ -67,7 +74,7 @@ export function PlaybackOverlay({ playback }) {
       </div>
 
       <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0 }}>
-        <WaveformStrip blocks={blocks} currentPositionMs={currentPositionMs} />
+        <WaveformStrip blocks={blocks} currentPositionMs={currentPositionMs} onScrubStart={beginScrub} onScrubMove={scrubTo} onScrubEnd={endScrub} />
       </div>
     </div>
   );
