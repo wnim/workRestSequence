@@ -24,10 +24,12 @@ export function useKeyboard({ onPlay, onPause, onStop, onHelp, onSave, onSeekBy 
       }
 
       if (playState !== 'idle') {
-        if (e.code === 'Space') { e.preventDefault(); onPause?.(); return; }
+        if (e.code === 'Space' || key(e, 'k', 'KeyK')) { e.preventDefault(); onPause?.(); return; }
         if (e.code === 'Escape') { onStop?.(); return; }
         if (e.code === 'ArrowRight') { e.preventDefault(); onSeekBy?.(e.shiftKey ? 10000 : 5000); return; }
         if (e.code === 'ArrowLeft')  { e.preventDefault(); onSeekBy?.(e.shiftKey ? -10000 : -5000); return; }
+        if (key(e, 'l', 'KeyL')) { e.preventDefault(); onSeekBy?.(10000); return; }
+        if (key(e, 'j', 'KeyJ')) { e.preventDefault(); onSeekBy?.(-10000); return; }
         return;
       }
 
@@ -43,7 +45,7 @@ export function useKeyboard({ onPlay, onPause, onStop, onHelp, onSave, onSeekBy 
         e.preventDefault(); undo();
       } else if ((e.ctrlKey || e.metaKey) && (key(e, 'y', 'KeyY') || (key(e, 'z', 'KeyZ') && e.shiftKey))) {
         e.preventDefault(); redo();
-      } else if (e.code === 'Space') {
+      } else if (e.code === 'Space' || key(e, 'k', 'KeyK')) {
         e.preventDefault(); onPlay?.();
       } else if (e.key === '?') {
         onHelp?.();
