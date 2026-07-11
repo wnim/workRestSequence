@@ -60,6 +60,7 @@ export function usePlayback() {
   }, [blocks, audio, clearCues]);
 
   const startRaf = useCallback((startWallTime, pausedMs) => {
+    cancelAnimationFrame(rafRef.current);
     const totalMs = blocks.reduce((s, b) => s + b.duration, 0) * 1000;
 
     function tick() {
@@ -81,6 +82,7 @@ export function usePlayback() {
 
   const play = useCallback(() => {
     if (blocks.length === 0) return;
+    if (useStore.getState().playState !== 'idle') return;
     const now = Date.now();
     setPlayStartWallTime(now);
     setPausedDuration(0);
