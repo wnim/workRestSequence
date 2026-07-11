@@ -1,28 +1,24 @@
 import { useRef, useEffect, useCallback } from 'react';
 import { blocksToTotalDuration } from '../../utils/time';
 
-function buildPath(blocks, scale, height) {
-  if (blocks.length === 0) return '';
-  const HIGH_Y = height * 0.2;
-  const LOW_Y = height * 0.85;
-  let x = 0;
-  let y = blocks[0].type === 'work' ? HIGH_Y : LOW_Y;
-  let d = `M 0 ${y}`;
+function buildSegments(blocks) {
+  const segs = [];
+  let t = 0;
   for (const b of blocks) {
-    const targetY = b.type === 'work' ? HIGH_Y : LOW_Y;
-    if (targetY !== y) { d += ` V ${targetY}`; y = targetY; }
-    x += b.duration * scale;
-    d += ` H ${x}`;
+    segs.push({ x: t, width: b.duration, type: b.type });
+    t += b.duration;
   }
-  return d;
+  return segs;
 }
 
 export function WaveformStrip({ blocks, currentPositionMs, onScrubStart, onScrubMove, onScrubEnd }) {
   const totalSec = blocksToTotalDuration(blocks);
-  const height = 40;
+  const height = 44;
   const wrapperRef = useRef(null);
   const isDragging = useRef(false);
   const lastMs = useRef(0);
+  const currentSec = (currentPositionMs || 0) / 1000;
+  const playFraction = totalSec > 0 ? currentSec / totalSec : 0;
 
   const getMs = useCallback((e) => {
     const rect = wrapperRef.current.getBoundingClientRect();
@@ -59,10 +55,22 @@ export function WaveformStrip({ blocks, currentPositionMs, onScrubStart, onScrub
     onScrubMove?.(ms);
   } : undefined;
 
+  const segments = buildSegments(blocks);
+  const BAR_TOP = 12;
+  const BAR_BOT = 12;
+  const barH = height - BAR_TOP - BAR_BOT;
+
   return (
     <div
       ref={wrapperRef}
-      style={{ position: 'relative', width: '100%', height, background: 'rgba(0,0,0,0.3)', cursor: onScrubStart ? 'pointer' : undefined }}
+      style={{
+        position: 'relative',
+        width: '100%',
+        height,
+        background: 'rgba(0,0,0,0.25)',
+        borderTop: '1px solid rgba(255,255,255,0.08)',
+        cursor: onScrubStart ? 'pointer' : undefined,
+      }}
       onMouseDown={handleMouseDown}
     >
       <svg
@@ -72,31 +80,72 @@ export function WaveformStrip({ blocks, currentPositionMs, onScrubStart, onScrub
         viewBox={`0 0 ${totalSec || 1} ${height}`}
         style={{ display: 'block' }}
       >
-        <path
-          d={buildPath(blocks, 1, height)}
-          fill="none"
-          stroke="rgba(255,255,255,0.5)"
-          strokeWidth={1}
-          vectorEffect="non-scaling-stroke"
-        />
-        <rect
-          x={(currentPositionMs / 1000) || 0}
-          y={0}
-          width={totalSec / 200}
-          height={height}
-          fill="white"
-          opacity={0.2}
-        />
+        {segments.map((seg, i) => {
+          const isWork = seg.type === 'work';
+          const fullyPlayed = currentSec >= seg.x + seg.width;
+          const partialFrac = currentSec > seg.x && currentSec < seg.x + seg.width
+            ? (currentSec - seg.x) / seg.width : 0;
+
+          return (
+            <g key={i}>
+              {/* Unplayed portion */}
+              <rect
+                x={seg.x} y={BAR_TOP}
+                width={seg.width} height={barH}
+                fill={isWork ? 'rgba(220,95,40,0.28)' : 'rgba(90,130,210,0.18)'}
+                rx={0}
+              />
+              {/* Played portion */}
+              {(fullyPlayed || partialFrac > 0) && (
+                <rect
+                  x={seg.x} y={BAR_TOP}
+                  width={fullyPlayed ? seg.width : seg.width * partialFrac}
+                  height={barH}
+                  fill={isWork ? 'rgba(235,105,45,0.88)' : 'rgba(110,155,235,0.6)'}
+                />
+              )}
+            </g>
+          );
+        })}
+
+        {/* Block dividers */}
+        {segments.slice(1).map((seg, i) => (
+          <line
+            key={i}
+            x1={seg.x} y1={BAR_TOP - 2}
+            x2={seg.x} y2={height - BAR_BOT + 2}
+            stroke="rgba(0,0,0,0.35)"
+            strokeWidth={1}
+            vectorEffect="non-scaling-stroke"
+          />
+        ))}
+
+        {/* Playhead line */}
         <line
-          x1={(currentPositionMs / 1000) || 0}
-          y1={0}
-          x2={(currentPositionMs / 1000) || 0}
-          y2={height}
+          x1={currentSec} y1={0}
+          x2={currentSec} y2={height}
           stroke="white"
           strokeWidth={2}
           vectorEffect="non-scaling-stroke"
+          opacity={0.9}
         />
       </svg>
+
+      {/* Playhead handle — CSS circle avoids SVG distortion */}
+      <div
+        style={{
+          position: 'absolute',
+          top: '50%',
+          left: `${playFraction * 100}%`,
+          transform: 'translate(-50%, -50%)',
+          width: 10,
+          height: 10,
+          borderRadius: '50%',
+          background: 'white',
+          boxShadow: '0 1px 4px rgba(0,0,0,0.5)',
+          pointerEvents: 'none',
+        }}
+      />
     </div>
   );
 }

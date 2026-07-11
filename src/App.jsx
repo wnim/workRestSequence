@@ -41,6 +41,7 @@ export default function App() {
   const loadWorkout = useStore((s) => s.loadWorkout);
 
   const contentRef = useRef(null);
+  const pickerRef = useRef(null);
 
   const [showGist, setShowGist] = useState(false);
   const [showCode, setShowCode] = useState(false);
@@ -59,6 +60,7 @@ export default function App() {
     onHelp: () => setShowHelp((v) => !v),
     onSave: handleSave,
     onSeekBy: (delta) => playback.seek(playback.currentPositionMs + delta),
+    onOpenPicker: () => pickerRef.current?.open(),
   });
 
   const totalSec = blocksToTotalDuration(blocks);
@@ -142,7 +144,7 @@ export default function App() {
           />
         ) : (
           <div style={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-            <WorkoutPicker onLoad={handleLoadWorkout} />
+            <WorkoutPicker ref={pickerRef} onLoad={handleLoadWorkout} />
             <button
               onClick={() => { setRenameValue(activeWorkoutName ?? ''); setIsRenaming(true); }}
               title="Rename"

@@ -5,7 +5,7 @@ function key(e, letter, code) {
   return /^[a-z]$/i.test(e.key) ? e.key.toLowerCase() === letter : e.code === code;
 }
 
-export function useKeyboard({ onPlay, onPause, onStop, onHelp, onSave, onSeekBy } = {}) {
+export function useKeyboard({ onPlay, onPause, onStop, onHelp, onSave, onSeekBy, onOpenPicker } = {}) {
   const removeBlocks = useStore((s) => s.removeBlocks);
   const selectedIds = useStore((s) => s.selectedIds);
   const copySelection = useStore((s) => s.copySelection);
@@ -49,10 +49,12 @@ export function useKeyboard({ onPlay, onPause, onStop, onHelp, onSave, onSeekBy 
         e.preventDefault(); onPlay?.();
       } else if (e.key === '?') {
         onHelp?.();
+      } else if (e.key === '/') {
+        e.preventDefault(); onOpenPicker?.();
       }
     }
 
     window.addEventListener('keydown', handler);
     return () => window.removeEventListener('keydown', handler);
-  }, [selectedIds, playState, removeBlocks, copySelection, pasteBlocks, undo, redo, onPlay, onPause, onStop, onHelp, onSave, onSeekBy]);
+  }, [selectedIds, playState, removeBlocks, copySelection, pasteBlocks, undo, redo, onPlay, onPause, onStop, onHelp, onSave, onSeekBy, onOpenPicker]);
 }

@@ -1,7 +1,7 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, forwardRef, useImperativeHandle } from 'react';
 import useStore from '../../store/workoutStore';
 
-export function WorkoutPicker({ onLoad }) {
+export const WorkoutPicker = forwardRef(function WorkoutPicker({ onLoad }, ref) {
   const workouts = useStore((s) => s.workouts);
   const activeWorkoutName = useStore((s) => s.activeWorkoutName);
   const deleteWorkout = useStore((s) => s.deleteWorkout);
@@ -10,11 +10,31 @@ export function WorkoutPicker({ onLoad }) {
   const [open, setOpen] = useState(false);
   const [newName, setNewName] = useState('');
   const [pendingDelete, setPendingDelete] = useState(null);
+  const [highlightedIndex, setHighlightedIndex] = useState(null);
   const containerRef = useRef(null);
   const pendingTimeoutRef = useRef(null);
   const inputRef = useRef(null);
+  const listRef = useRef(null);
 
   const names = Object.keys(workouts).sort();
+
+  useImperativeHandle(ref, () => ({
+    open() {
+      setOpen(true);
+      setHighlightedIndex(null);
+    },
+  }));
+
+  useEffect(() => {
+    if (!open) { setHighlightedIndex(null); return; }
+    setTimeout(() => inputRef.current?.focus(), 40);
+  }, [open]);
+
+  useEffect(() => {
+    if (highlightedIndex === null || !listRef.current) return;
+    const items = listRef.current.querySelectorAll('[data-item]');
+    items[highlightedIndex]?.scrollIntoView({ block: 'nearest' });
+  }, [highlightedIndex]);
 
   useEffect(() => {
     if (!open) return;
@@ -23,10 +43,6 @@ export function WorkoutPicker({ onLoad }) {
     }
     document.addEventListener('mousedown', handleClick);
     return () => document.removeEventListener('mousedown', handleClick);
-  }, [open]);
-
-  useEffect(() => {
-    if (open) setTimeout(() => inputRef.current?.focus(), 40);
   }, [open]);
 
   function handleCreate() {
@@ -58,10 +74,31 @@ export function WorkoutPicker({ onLoad }) {
     }
   }
 
+  function handleInputKeyDown(e) {
+    if (e.key === 'Enter') {
+      if (highlightedIndex !== null && names[highlightedIndex]) {
+        handleLoad(names[highlightedIndex]);
+      } else {
+        handleCreate();
+      }
+      return;
+    }
+    if (e.key === 'Escape') { setOpen(false); return; }
+    if (e.key === 'ArrowDown') {
+      e.preventDefault();
+      setHighlightedIndex((i) => (i === null ? 0 : Math.min(i + 1, names.length - 1)));
+      return;
+    }
+    if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      setHighlightedIndex((i) => (i === null || i === 0 ? null : i - 1));
+    }
+  }
+
   return (
     <div ref={containerRef} style={{ position: 'relative' }}>
       <button
-        onClick={() => setOpen((v) => !v)}
+        onClick={() => { setOpen((v) => !v); setHighlightedIndex(null); }}
         style={{
           background: open ? 'rgba(255,255,255,0.08)' : 'none',
           border: 'none', cursor: 'pointer',
@@ -91,10 +128,7 @@ export function WorkoutPicker({ onLoad }) {
               ref={inputRef}
               value={newName}
               onChange={(e) => setNewName(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter') handleCreate();
-                if (e.key === 'Escape') setOpen(false);
-              }}
+              onKeyDown={handleInputKeyDown}
               placeholder="New workout name…"
               style={{
                 flex: 1, background: 'rgba(255,255,255,0.07)',
@@ -117,26 +151,30 @@ export function WorkoutPicker({ onLoad }) {
             <div style={{ borderTop: '1px solid rgba(255,255,255,0.08)', marginBottom: 4 }} />
           )}
 
-          <div style={{ maxHeight: 280, overflowY: 'auto' }}>
+          <div ref={listRef} style={{ maxHeight: 280, overflowY: 'auto' }}>
             {names.length === 0 && (
               <p style={{ color: 'rgba(255,255,255,0.4)', fontSize: 12, textAlign: 'center', padding: '8px 0', margin: 0 }}>
                 No saved workouts yet.
               </p>
             )}
-            {names.map((name) => {
+            {names.map((name, i) => {
               const active = name === activeWorkoutName;
               const armed = pendingDelete === name;
+              const highlighted = highlightedIndex === i;
               return (
                 <div
                   key={name}
+                  data-item
                   onClick={() => handleLoad(name)}
+                  onMouseEnter={() => setHighlightedIndex(i)}
+                  onMouseLeave={() => setHighlightedIndex(null)}
                   style={{
                     display: 'flex', alignItems: 'center', gap: 6,
                     padding: '6px 8px', borderRadius: 5, cursor: 'pointer',
-                    background: active ? 'rgba(255,255,255,0.1)' : 'transparent',
+                    background: highlighted
+                      ? 'rgba(255,255,255,0.1)'
+                      : active ? 'rgba(255,255,255,0.07)' : 'transparent',
                   }}
-                  onMouseEnter={(e) => { if (!active) e.currentTarget.style.background = 'rgba(255,255,255,0.05)'; }}
-                  onMouseLeave={(e) => { if (!active) e.currentTarget.style.background = active ? 'rgba(255,255,255,0.1)' : 'transparent'; }}
                 >
                   <span style={{ flex: 1, fontSize: 13, color: active ? 'oklch(0.75 0.15 200)' : 'white' }}>
                     {name}
@@ -161,4 +199,4 @@ export function WorkoutPicker({ onLoad }) {
       )}
     </div>
   );
-}
+});
