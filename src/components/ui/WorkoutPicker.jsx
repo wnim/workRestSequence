@@ -5,7 +5,7 @@ export const WorkoutPicker = forwardRef(function WorkoutPicker({ onLoad }, ref) 
   const workouts = useStore((s) => s.workouts);
   const activeWorkoutName = useStore((s) => s.activeWorkoutName);
   const deleteWorkout = useStore((s) => s.deleteWorkout);
-  const saveWorkout = useStore((s) => s.saveWorkout);
+  const createWorkout = useStore((s) => s.createWorkout);
 
   const [open, setOpen] = useState(false);
   const [newName, setNewName] = useState('');
@@ -47,7 +47,7 @@ export const WorkoutPicker = forwardRef(function WorkoutPicker({ onLoad }, ref) 
 
   function handleCreate() {
     const name = newName.trim() || `Workout ${names.length + 1}`;
-    saveWorkout(name);
+    createWorkout(name);
     setNewName('');
     setOpen(false);
   }

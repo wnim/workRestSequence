@@ -40,7 +40,10 @@ export function BlockEditModal({ blocks, onClose }) {
 
   return (
     <Dialog open onOpenChange={(open) => { if (!open) onClose(); }}>
-      <DialogContent style={{ background: '#1a1a2e', border: '1px solid rgba(255,255,255,0.1)', color: 'white' }}>
+      <DialogContent
+        style={{ background: '#1a1a2e', border: '1px solid rgba(255,255,255,0.1)', color: 'white' }}
+        onKeyDown={(e) => { if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); handleSave(); } }}
+      >
         <DialogHeader>
           <DialogTitle style={{ color: 'white' }}>
             {isMulti ? `Edit ${blocks.length} Blocks` : 'Edit Block'}
@@ -73,6 +76,7 @@ export function BlockEditModal({ blocks, onClose }) {
           <div>
             <Label style={{ color: 'rgba(255,255,255,0.7)' }}>Label</Label>
             <Input
+              autoFocus
               value={label}
               onChange={(e) => setLabel(e.target.value)}
               placeholder={isMulti ? 'Apply label to all selected' : 'Optional label'}
