@@ -247,6 +247,7 @@ export const TimelineEditor = forwardRef(function TimelineEditor(props, ref) {
     rubberStart.current = { x, y };
     setRubberBand({ x1: x, y1: y, x2: x, y2: y });
     setSelectedIds(new Set());
+    e.currentTarget.setPointerCapture(e.pointerId);
   }, [setSelectedIds]);
 
   const handleContainerPointerMove = useCallback((e) => {
