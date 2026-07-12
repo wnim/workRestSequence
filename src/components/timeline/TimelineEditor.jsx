@@ -1,4 +1,5 @@
 import { useRef, useState, useCallback, useEffect, forwardRef, useImperativeHandle } from 'react';
+import { TbMarquee, TbMarquee2 } from 'react-icons/tb';
 import {
   DndContext,
   PointerSensor,
@@ -66,6 +67,7 @@ export const TimelineEditor = forwardRef(function TimelineEditor(props, ref) {
   const [editingBlocks, setEditingBlocks] = useState(null);
   const [rubberBand, setRubberBand] = useState(null);
   const rubberStart = useRef(null);
+  const [selectionMode, setSelectionMode] = useState('all'); // 'all' | 'work' | 'rest'
   const [dragActiveId, setDragActiveId] = useState(null);
   const [dragDeltaX, setDragDeltaX] = useState(0);
   const [dragDeltaY, setDragDeltaY] = useState(0);
@@ -147,6 +149,17 @@ export const TimelineEditor = forwardRef(function TimelineEditor(props, ref) {
     scrollRef.current.scrollLeft = pendingScrollRef.current;
     pendingScrollRef.current = null;
   }, [pxPerSecond]);
+
+  useEffect(() => {
+    const onKeyDown = (e) => {
+      if (e.key !== 'Enter') return;
+      if (e.target.closest('input, textarea, [contenteditable]')) return;
+      if (selectedIds.size === 0) return;
+      setEditingBlocks(blocks.filter((b) => selectedIds.has(b.id)));
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [blocks, selectedIds]);
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 6 } })
@@ -251,6 +264,7 @@ export const TimelineEditor = forwardRef(function TimelineEditor(props, ref) {
 
     const hit = new Set();
     blocks.forEach((b, i) => {
+      if (selectionMode !== 'all' && b.type !== selectionMode) return;
       const bLeft = blockStartTime(blocks, i) * pxPerSecond;
       const bRight = bLeft + b.duration * pxPerSecond;
       const bTop = BLOCK_TOP;
@@ -258,7 +272,7 @@ export const TimelineEditor = forwardRef(function TimelineEditor(props, ref) {
       if (bRight > minX && bLeft < maxX && bBottom > minY && bTop < maxY) hit.add(b.id);
     });
     setSelectedIds(hit);
-  }, [blocks, pxPerSecond, setSelectedIds]);
+  }, [blocks, pxPerSecond, setSelectedIds, selectionMode]);
 
   const handleContainerPointerUp = useCallback(() => {
     rubberStart.current = null;
@@ -266,6 +280,13 @@ export const TimelineEditor = forwardRef(function TimelineEditor(props, ref) {
   }, []);
 
   const ticks = buildRulerTicks(totalSec, pxPerSecond);
+
+  const selModeBtnStyle = (mode) => ({
+    background: selectionMode === mode ? 'rgba(255,255,255,0.1)' : 'none',
+    border: 'none', borderRadius: 3,
+    cursor: 'pointer', height: 22, padding: '0 3px',
+    display: 'flex', alignItems: 'center', justifyContent: 'center',
+  });
 
   const zoomBtnStyle = (disabled) => ({
     background: 'none', border: 'none', borderRadius: 3,
@@ -295,6 +316,26 @@ export const TimelineEditor = forwardRef(function TimelineEditor(props, ref) {
         <div style={{ width: 1, alignSelf: 'stretch', background: 'rgba(255,255,255,0.12)', margin: '1px 2px' }} />
         <button style={zoomBtnStyle(false)} title="Fit all to screen (Ctrl+0)" onClick={() => fitToScreen()}>⟷</button>
         <button style={zoomBtnStyle(selectedIds.size === 0)} title="Zoom to selection (Z)" onClick={zoomToSelection} disabled={selectedIds.size === 0}>⊡</button>
+      </div>
+
+      {/* Selection mode toolbar */}
+      <div style={{
+        position: 'absolute', top: RULER_HEIGHT + 6, right: 8, zIndex: 20,
+        display: 'flex', gap: 2, alignItems: 'center',
+        background: 'rgba(14,15,32,0.82)', borderRadius: 5, padding: 3,
+        border: '1px solid rgba(255,255,255,0.1)',
+        backdropFilter: 'blur(6px)',
+      }}>
+        <button style={selModeBtnStyle('all')} title="Select any block" onClick={() => setSelectionMode('all')}>
+          <TbMarquee size={16} color={selectionMode === 'all' ? 'rgba(255,255,255,0.85)' : 'rgba(255,255,255,0.28)'} />
+        </button>
+        <div style={{ width: 1, alignSelf: 'stretch', background: 'rgba(255,255,255,0.12)', margin: '1px 2px' }} />
+        <button style={selModeBtnStyle('work')} title="Select only work blocks" onClick={() => setSelectionMode('work')}>
+          <TbMarquee2 size={16} color={selectionMode === 'work' ? 'rgba(255,145,100,0.9)' : 'rgba(255,145,100,0.3)'} />
+        </button>
+        <button style={selModeBtnStyle('rest')} title="Select only rest blocks" onClick={() => setSelectionMode('rest')}>
+          <TbMarquee2 size={16} color={selectionMode === 'rest' ? 'rgba(130,165,220,0.9)' : 'rgba(130,165,220,0.3)'} />
+        </button>
       </div>
 
       {/* Scrollable container: ruler + canvas scroll together */}
