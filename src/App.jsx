@@ -6,6 +6,7 @@ import { useKeyboard } from './hooks/useKeyboard';
 import { TimelineEditor } from './components/timeline/TimelineEditor';
 import { PlaybackOverlay } from './components/playback/PlaybackOverlay';
 import { GistSetupModal } from './components/modals/GistSetupModal';
+import { ConflictModal } from './components/modals/ConflictModal';
 import { WorkoutPicker } from './components/ui/WorkoutPicker';
 import { CodeEditorModal } from './components/modals/CodeEditorModal';
 import { Button } from './components/ui/button';
@@ -24,7 +25,7 @@ const SAVE_STATES = {
 };
 
 export default function App() {
-  const { saveNow } = useGistSync();
+  const { saveNow, resolveConflict } = useGistSync();
   const blocks = useStore((s) => s.blocks);
   const addBlock = useStore((s) => s.addBlock);
   const setBlocks = useStore((s) => s.setBlocks);
@@ -229,6 +230,7 @@ export default function App() {
 
       {playState !== 'idle' && <PlaybackOverlay playback={playback} />}
       {showGist && <GistSetupModal onClose={() => setShowGist(false)} />}
+      <ConflictModal onKeepLocal={() => resolveConflict('local')} onUseRemote={() => resolveConflict('remote')} onMerge={() => resolveConflict('merge')} />
       {showCode && <CodeEditorModal onClose={() => setShowCode(false)} />}
       <KeyboardShortcutsHelp open={showHelp} onClose={() => setShowHelp(false)} />
     </div>

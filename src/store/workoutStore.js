@@ -50,6 +50,7 @@ const useStore = create((set, get) => ({
   pxPerSecond: loadPxPerSecond(),
   gistConfig: loadGistConfigFromLS(),
   syncStatus: 'idle',
+  conflictData: null,
   playState: 'idle',
   playStartWallTime: null,
   pausedDuration: 0,
@@ -153,6 +154,13 @@ const useStore = create((set, get) => ({
     return { workouts: { ...s.workouts, [name]: { name, blocks: s.blocks, resizeStep: s.resizeStep } }, activeWorkoutName: name };
   }),
 
+  createWorkout: (name) => set((s) => {
+    localStorage.setItem(LS_ACTIVE_WORKOUT, name);
+    past = [];
+    future = [];
+    return { workouts: { ...s.workouts, [name]: { name, blocks: [], resizeStep: s.resizeStep } }, activeWorkoutName: name, blocks: [], selectedIds: new Set() };
+  }),
+
   loadWorkout: (name) => set((s) => {
     const workout = s.workouts[name];
     if (!workout) return {};
@@ -186,6 +194,8 @@ const useStore = create((set, get) => ({
   setGistConfig: (cfg) => set({ gistConfig: cfg }),
 
   setSyncStatus: (status) => set({ syncStatus: status }),
+
+  setConflictData: (data) => set({ conflictData: data }),
 
   setBlocks: (blocks) => set((s) => { pushPast(s.blocks); return { blocks }; }),
 
