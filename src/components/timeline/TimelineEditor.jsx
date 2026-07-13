@@ -241,8 +241,7 @@ export const TimelineEditor = forwardRef(function TimelineEditor(props, ref) {
     // Don't steal events from blocks or resize handles
     if (e.target.closest('[data-block]')) return;
     const rect = containerRef.current.getBoundingClientRect();
-    const scrollLeft = scrollRef.current?.scrollLeft ?? 0;
-    const x = e.clientX - rect.left + scrollLeft;
+    const x = e.clientX - rect.left;
     const y = e.clientY - rect.top;
     rubberStart.current = { x, y };
     setRubberBand({ x1: x, y1: y, x2: x, y2: y });
@@ -253,8 +252,7 @@ export const TimelineEditor = forwardRef(function TimelineEditor(props, ref) {
   const handleContainerPointerMove = useCallback((e) => {
     if (!rubberStart.current) return;
     const rect = containerRef.current.getBoundingClientRect();
-    const scrollLeft = scrollRef.current?.scrollLeft ?? 0;
-    const x = e.clientX - rect.left + scrollLeft;
+    const x = e.clientX - rect.left;
     const y = e.clientY - rect.top;
     setRubberBand({ x1: rubberStart.current.x, y1: rubberStart.current.y, x2: x, y2: y });
 
