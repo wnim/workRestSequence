@@ -6,7 +6,7 @@ import { requestDeviceCode, pollForToken, findWorkoutGists, createGist } from '.
 import { GITHUB_CLIENT_ID, GIST_FILENAME, LS_GIST_CONFIG } from '../../utils/constants';
 
 // phases: 'connected' | 'auth' | 'resolving' | 'error'
-export function GistSetupModal({ onClose }) {
+export function GistSetupModal({ onClose, onPullFromGitHub }) {
   const setGistConfig = useStore((s) => s.setGistConfig);
   const setWorkouts = useStore((s) => s.setWorkouts);
   const gistConfig = useStore((s) => s.gistConfig);
@@ -16,6 +16,16 @@ export function GistSetupModal({ onClose }) {
   const [polling, setPolling] = useState(false);
   const [error, setError] = useState('');
   const [copied, setCopied] = useState(false);
+  const [pulling, setPulling] = useState(false);
+  const [pullDone, setPullDone] = useState(false);
+
+  async function handlePull() {
+    setPulling(true);
+    await onPullFromGitHub?.();
+    setPulling(false);
+    setPullDone(true);
+    setTimeout(() => setPullDone(false), 2500);
+  }
 
   function handleDisconnect() {
     localStorage.removeItem(LS_GIST_CONFIG);
@@ -109,6 +119,16 @@ export function GistSetupModal({ onClose }) {
             <>
               <p style={dim}>Connected to GitHub. Your workouts sync automatically.</p>
               <p style={{ ...dim, fontSize: 11, wordBreak: 'break-all' }}>Gist: {gistConfig?.gistId}</p>
+              <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                <Button
+                  variant="outline"
+                  onClick={handlePull}
+                  disabled={pulling}
+                  style={{ background: 'transparent', borderColor: pullDone ? 'oklch(0.55 0.18 150)' : 'rgba(255,255,255,0.2)', color: pullDone ? 'oklch(0.75 0.18 150)' : 'rgba(255,255,255,0.7)', alignSelf: 'flex-start', transition: 'all 0.15s' }}
+                >
+                  {pulling ? 'Pulling…' : pullDone ? 'Done!' : 'Pull from GitHub'}
+                </Button>
+              </div>
               <Button
                 variant="outline"
                 onClick={handleDisconnect}

@@ -25,7 +25,7 @@ const SAVE_STATES = {
 };
 
 export default function App() {
-  const { saveNow, resolveConflict } = useGistSync();
+  const { saveNow, pullNow, resolveConflict } = useGistSync();
   const blocks = useStore((s) => s.blocks);
   const addBlock = useStore((s) => s.addBlock);
   const setBlocks = useStore((s) => s.setBlocks);
@@ -229,7 +229,7 @@ export default function App() {
       )}
 
       {playState !== 'idle' && <PlaybackOverlay playback={playback} />}
-      {showGist && <GistSetupModal onClose={() => setShowGist(false)} />}
+      {showGist && <GistSetupModal onClose={() => setShowGist(false)} onPullFromGitHub={pullNow} />}
       <ConflictModal onKeepLocal={() => resolveConflict('local')} onUseRemote={() => resolveConflict('remote')} onMerge={() => resolveConflict('merge')} />
       {showCode && <CodeEditorModal onClose={() => setShowCode(false)} />}
       <KeyboardShortcutsHelp open={showHelp} onClose={() => setShowHelp(false)} />

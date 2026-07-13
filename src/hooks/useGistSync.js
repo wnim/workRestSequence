@@ -92,7 +92,22 @@ export function useGistSync() {
     return () => clearTimeout(saveTimerRef.current);
   }, [workouts, gistConfig, setSyncStatus, doSave]);
 
-  // 4. Manual immediate save
+  // 4. Force pull from Gist, overwriting local state
+  const pullNow = useCallback(() => {
+    if (!gistConfig?.gistId || !gistConfig?.token) return Promise.resolve();
+    setSyncStatus('loading');
+    return fetchGistData(gistConfig.gistId, gistConfig.token)
+      .then((data) => {
+        if (data?.workouts) {
+          setWorkouts(data.workouts);
+          lastSyncedRef.current = JSON.stringify(data.workouts);
+        }
+        setSyncStatus('idle');
+      })
+      .catch(() => setSyncStatus('error'));
+  }, [gistConfig, setSyncStatus, setWorkouts]);
+
+  // 5. Manual immediate save
   const saveNow = useCallback(() => {
     if (!gistConfig?.gistId || !gistConfig?.token) return;
     clearTimeout(saveTimerRef.current);
@@ -134,5 +149,5 @@ export function useGistSync() {
     };
   }, [workouts, gistConfig]);
 
-  return { saveNow, resolveConflict };
+  return { saveNow, pullNow, resolveConflict };
 }
