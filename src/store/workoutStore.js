@@ -189,7 +189,14 @@ const useStore = create((set, get) => ({
     };
   }),
 
-  setWorkouts: (map) => set({ workouts: map }),
+  setWorkouts: (map) => set((s) => {
+    if (s.activeWorkoutName && map[s.activeWorkoutName]) {
+      past = [];
+      future = [];
+      return { workouts: map, blocks: map[s.activeWorkoutName].blocks };
+    }
+    return { workouts: map };
+  }),
 
   setGistConfig: (cfg) => set({ gistConfig: cfg }),
 

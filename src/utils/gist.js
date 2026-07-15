@@ -4,6 +4,7 @@ const API = 'https://api.github.com';
 
 async function apiFetch(path, options, token) {
   const res = await fetch(`${API}${path}`, {
+    cache: 'no-store',
     ...options,
     headers: {
       'Authorization': `Bearer ${token}`,

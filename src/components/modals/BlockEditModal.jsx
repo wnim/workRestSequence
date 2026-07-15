@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { Lock, LockOpen } from 'lucide-react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '../ui/dialog';
 import { Button } from '../ui/button';
 import { Input } from '../ui/input';
@@ -14,12 +15,13 @@ export function BlockEditModal({ blocks, onClose }) {
   const isMulti = blocks.length > 1;
 
   const [label, setLabel] = useState(first.label || '');
+  const [labelLocked, setLabelLocked] = useState(isMulti);
   const [duration, setDuration] = useState(String(first.duration));
   const [type, setType] = useState(first.type);
 
   function handleSave() {
     const dur = Math.max(0.1, Math.min(3600, parseFloat(duration) || first.duration));
-    const patch = { label, duration: dur, ...(!isMixed ? { type } : {}) };
+    const patch = { ...(isMulti && labelLocked ? {} : { label }), duration: dur, ...(!isMixed ? { type } : {}) };
     if (isMulti) {
       updateBlocks(new Set(blocks.map((b) => b.id)), patch);
     } else {
@@ -74,19 +76,32 @@ export function BlockEditModal({ blocks, onClose }) {
           </div>
 
           <div>
-            <Label style={{ color: 'rgba(255,255,255,0.7)' }}>Label</Label>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+              <Label style={{ color: isMulti && labelLocked ? 'rgba(255,255,255,0.4)' : 'rgba(255,255,255,0.7)' }}>Label</Label>
+              {isMulti && (
+                <button
+                  onClick={() => setLabelLocked((l) => !l)}
+                  title={labelLocked ? 'Unlock to apply a label to all' : 'Lock to keep individual labels'}
+                  style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 2, display: 'flex', alignItems: 'center', color: labelLocked ? 'rgba(255,255,255,0.35)' : 'rgba(255,255,255,0.7)' }}
+                >
+                  {labelLocked ? <Lock size={13} /> : <LockOpen size={13} />}
+                </button>
+              )}
+            </div>
             <Input
-              autoFocus
-              value={label}
+              autoFocus={!isMulti || !labelLocked}
+              readOnly={isMulti && labelLocked}
+              value={isMulti && labelLocked ? '' : label}
               onChange={(e) => setLabel(e.target.value)}
-              placeholder={isMulti ? 'Apply label to all selected' : 'Optional label'}
-              style={{ marginTop: 6, background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.2)', color: 'white' }}
+              placeholder={isMulti && labelLocked ? 'Kept individually' : isMulti ? 'Apply label to all selected' : 'Optional label'}
+              style={{ marginTop: 6, background: isMulti && labelLocked ? 'rgba(255,255,255,0.02)' : 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.2)', color: isMulti && labelLocked ? 'rgba(255,255,255,0.3)' : 'white', cursor: isMulti && labelLocked ? 'default' : 'text' }}
             />
           </div>
 
           <div>
             <Label style={{ color: 'rgba(255,255,255,0.7)' }}>Duration (seconds)</Label>
             <Input
+              autoFocus={isMulti}
               type="number"
               min={0.1}
               max={3600}
