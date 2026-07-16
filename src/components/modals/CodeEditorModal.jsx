@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { v4 as uuid } from 'uuid';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '../ui/dialog';
 import { Button } from '../ui/button';
@@ -30,6 +30,16 @@ export function CodeEditorModal({ onClose }) {
 
   const [code, setCode] = useState(() => blocksToCode(blocks));
   const [error, setError] = useState(null);
+  const [showSearch, setShowSearch] = useState(false);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [replaceTerm, setReplaceTerm] = useState('');
+
+  const matchCount = searchTerm ? (code.split(searchTerm).length - 1) : 0;
+
+  function handleReplaceAll() {
+    if (!searchTerm) return;
+    setCode(code.split(searchTerm).join(replaceTerm));
+  }
 
   function handleApply() {
     try {
@@ -49,11 +59,48 @@ export function CodeEditorModal({ onClose }) {
           <DialogTitle style={{ color: 'white' }}>Edit as JSON</DialogTitle>
         </DialogHeader>
 
-        <p style={{ fontSize: 12, color: 'rgba(255,255,255,0.4)', margin: 0 }}>
-          Array of blocks — each needs <code style={{ color: 'rgba(255,255,255,0.6)' }}>type</code> ("work" or "rest"),{' '}
-          <code style={{ color: 'rgba(255,255,255,0.6)' }}>duration</code> (seconds), optional{' '}
-          <code style={{ color: 'rgba(255,255,255,0.6)' }}>label</code>.
-        </p>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 8 }}>
+          <p style={{ fontSize: 12, color: 'rgba(255,255,255,0.4)', margin: 0 }}>
+            Array of blocks — each needs <code style={{ color: 'rgba(255,255,255,0.6)' }}>type</code> ("work" or "rest"),{' '}
+            <code style={{ color: 'rgba(255,255,255,0.6)' }}>duration</code> (seconds), optional{' '}
+            <code style={{ color: 'rgba(255,255,255,0.6)' }}>label</code>.
+          </p>
+          <button
+            onClick={() => setShowSearch((v) => !v)}
+            style={{ background: 'rgba(255,255,255,0.07)', border: '1px solid rgba(255,255,255,0.15)', borderRadius: 4, color: 'rgba(255,255,255,0.5)', fontSize: 12, cursor: 'pointer', padding: '3px 8px', flexShrink: 0, whiteSpace: 'nowrap' }}
+          >
+            {showSearch ? 'hide replace' : 'find & replace'}
+          </button>
+        </div>
+
+        {showSearch && (
+          <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+            <input
+              placeholder="Find"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              style={{ flex: 1, background: '#0d0e1a', border: '1px solid rgba(255,255,255,0.12)', borderRadius: 4, color: '#c9d1d9', fontFamily: 'monospace', fontSize: 12, padding: '4px 8px', outline: 'none' }}
+            />
+            <input
+              placeholder="Replace"
+              value={replaceTerm}
+              onChange={(e) => setReplaceTerm(e.target.value)}
+              style={{ flex: 1, background: '#0d0e1a', border: '1px solid rgba(255,255,255,0.12)', borderRadius: 4, color: '#c9d1d9', fontFamily: 'monospace', fontSize: 12, padding: '4px 8px', outline: 'none' }}
+            />
+            <Button
+              onClick={handleReplaceAll}
+              disabled={!searchTerm}
+              style={{ background: 'rgba(255,255,255,0.08)', color: 'rgba(255,255,255,0.7)', fontSize: 12, padding: '4px 10px', flexShrink: 0 }}
+            >
+              Replace all
+            </Button>
+            {searchTerm && (
+              <span style={{ fontSize: 11, color: 'rgba(255,255,255,0.35)', flexShrink: 0 }}>
+                {matchCount} match{matchCount !== 1 ? 'es' : ''}
+              </span>
+            )}
+          </div>
+        )}
 
         <textarea
           value={code}
