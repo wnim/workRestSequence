@@ -8,25 +8,34 @@ import {
   useDndMonitor,
   closestCenter,
 } from '@dnd-kit/core';
-import { SortableContext, horizontalListSortingStrategy } from '@dnd-kit/sortable';
+import { SortableContext, horizontalListSortingStrategy, verticalListSortingStrategy } from '@dnd-kit/sortable';
 import useStore from '../../store/workoutStore';
-import { blockStartTime, blocksToTotalDuration } from '../../utils/time';
-import { TIMELINE_CANVAS_HEIGHT, BLOCK_TOP, BLOCK_HEIGHT, MULTI_DRAG_SCALE } from '../../utils/constants';
+import { blockStartTime, blocksToTotalDuration, getBlockBounds } from '../../utils/time';
+import { TIMELINE_CANVAS_HEIGHT, BLOCK_TOP, BLOCK_HEIGHT, MULTI_DRAG_SCALE, VERTICAL_RULER_WIDTH } from '../../utils/constants';
 import { BlockItem } from './BlockItem';
 import { WaveformSVG } from './WaveformSVG';
 import { BlockEditModal } from '../modals/BlockEditModal';
 
 const RULER_HEIGHT = 24;
 
-// Expand every droppable rect to span the full canvas height so vertical
-// movement never causes over=null and the resulting snap-back.
-function horizontalOnlyCollision(args) {
-  const expanded = new Map();
-  args.droppableRects.forEach((rect, id) => {
-    expanded.set(id, { ...rect, top: 0, bottom: TIMELINE_CANVAS_HEIGHT, height: TIMELINE_CANVAS_HEIGHT });
-  });
-  return closestCenter({ ...args, droppableRects: expanded });
+// Expand every droppable rect along the non-sort axis so off-axis mouse movement
+// never causes over=null. axis: 'x' = horizontal DnD, 'y' = vertical DnD.
+function makeAxisOnlyCollision(canvasExtent, axis) {
+  return (args) => {
+    const expanded = new Map();
+    args.droppableRects.forEach((rect, id) => {
+      expanded.set(id, axis === 'x'
+        ? { ...rect, top: 0, bottom: canvasExtent, height: canvasExtent }
+        : { ...rect, left: 0, right: canvasExtent, width: canvasExtent }
+      );
+    });
+    return closestCenter({ ...args, droppableRects: expanded });
+  };
 }
+const horizontalCollision = makeAxisOnlyCollision(TIMELINE_CANVAS_HEIGHT, 'x');
+// Vertical collision extent is generous — real width is computed dynamically but
+// we just need it large enough to span the canvas.
+const verticalCollision = makeAxisOnlyCollision(2000, 'y');
 
 function DragMonitor({ onMove }) {
   useDndMonitor({
@@ -45,9 +54,19 @@ function buildRulerTicks(totalSec, pxPerSecond) {
     pxPerSecond < 30 ? 5  : 1;
   const ticks = [];
   for (let t = 0; t <= totalSec + interval; t += interval) {
-    ticks.push({ t, x: t * pxPerSecond });
+    ticks.push({ t, pos: t * pxPerSecond });
   }
   return ticks;
+}
+
+function useIsMobile() {
+  const [isMobile, setIsMobile] = useState(() => window.innerWidth < 640);
+  useEffect(() => {
+    const handler = () => setIsMobile(window.innerWidth < 640);
+    window.addEventListener('resize', handler);
+    return () => window.removeEventListener('resize', handler);
+  }, []);
+  return isMobile;
 }
 
 export const TimelineEditor = forwardRef(function TimelineEditor(props, ref) {
@@ -59,6 +78,12 @@ export const TimelineEditor = forwardRef(function TimelineEditor(props, ref) {
   const reorderBlocks = useStore((s) => s.reorderBlocks);
   const setBlocks = useStore((s) => s.setBlocks);
 
+  const isMobile = useIsMobile();
+  const [verticalToggle, setVerticalToggle] = useState(false);
+  const vertical = isMobile || verticalToggle;
+  const verticalRef = useRef(vertical);
+  useEffect(() => { verticalRef.current = vertical; }, [vertical]);
+
   const containerRef = useRef(null);
   const scrollRef = useRef(null);
   const pxPerSecondRef = useRef(pxPerSecond);
@@ -67,13 +92,20 @@ export const TimelineEditor = forwardRef(function TimelineEditor(props, ref) {
   const [editingBlocks, setEditingBlocks] = useState(null);
   const [rubberBand, setRubberBand] = useState(null);
   const rubberStart = useRef(null);
-  const [selectionMode, setSelectionMode] = useState('all'); // 'all' | 'work' | 'rest'
+  const [selectionMode, setSelectionMode] = useState('all');
   const [dragActiveId, setDragActiveId] = useState(null);
   const [dragDeltaX, setDragDeltaX] = useState(0);
   const [dragDeltaY, setDragDeltaY] = useState(0);
   const [suppressTransition, setSuppressTransition] = useState(false);
 
   useEffect(() => { pxPerSecondRef.current = pxPerSecond; }, [pxPerSecond]);
+
+  // In vertical mode, width is just enough to fit the longest label + duration text.
+  // ~7.2px per char at 12px monospace, plus padding (6) + resize handle (8) + gap (20).
+  const vertBlockWidth = Math.max(80, blocks.reduce((max, b) => {
+    const label = b.label || (b.type === 'work' ? 'Work' : 'Rest');
+    return Math.max(max, `${label} ${b.duration}s`.length);
+  }, 0) * 7.2 + 34);
 
   const zoomToSelection = useCallback(() => {
     const selected = blocks.filter((b) => selectedIds.has(b.id));
@@ -85,8 +117,8 @@ export const TimelineEditor = forwardRef(function TimelineEditor(props, ref) {
     const endSec = blockStartTime(blocks, maxIdx) + blocks[maxIdx].duration;
     const spanSec = endSec - startSec;
     if (spanSec <= 0) return;
-    const availableWidth = scrollRef.current.clientWidth;
-    const newPx = Math.max(2, Math.min(100, availableWidth / spanSec));
+    const available = verticalRef.current ? scrollRef.current.clientHeight : scrollRef.current.clientWidth;
+    const newPx = Math.max(2, Math.min(100, available / spanSec));
     pendingScrollRef.current = startSec * newPx;
     setPxPerSecond(newPx);
   }, [blocks, selectedIds, setPxPerSecond]);
@@ -94,8 +126,8 @@ export const TimelineEditor = forwardRef(function TimelineEditor(props, ref) {
   const fitToScreen = useCallback((sec) => {
     const totalS = sec != null ? sec : blocksToTotalDuration(blocks);
     if (!totalS || !scrollRef.current) return;
-    const availableWidth = scrollRef.current.clientWidth;
-    const newPx = Math.max(2, Math.min(100, availableWidth / (totalS * 1.1)));
+    const available = verticalRef.current ? scrollRef.current.clientHeight : scrollRef.current.clientWidth;
+    const newPx = Math.max(2, Math.min(100, available / (totalS * 1.1)));
     pendingScrollRef.current = 0;
     setPxPerSecond(newPx);
   }, [blocks, setPxPerSecond]);
@@ -104,9 +136,13 @@ export const TimelineEditor = forwardRef(function TimelineEditor(props, ref) {
     const el = scrollRef.current;
     if (!el) return;
     const cur = pxPerSecondRef.current;
-    const timeAtCenter = (el.scrollLeft + el.clientWidth / 2) / cur;
+    const isVert = verticalRef.current;
+    const pos = isVert
+      ? (el.scrollTop + el.clientHeight / 2) / cur
+      : (el.scrollLeft + el.clientWidth / 2) / cur;
     const newPx = Math.max(2, Math.min(100, cur * factor));
-    pendingScrollRef.current = Math.max(0, timeAtCenter * newPx - el.clientWidth / 2);
+    const newPos = Math.max(0, pos * newPx - (isVert ? el.clientHeight : el.clientWidth) / 2);
+    pendingScrollRef.current = newPos;
     setPxPerSecond(newPx);
   }, [setPxPerSecond]);
 
@@ -115,38 +151,44 @@ export const TimelineEditor = forwardRef(function TimelineEditor(props, ref) {
   useEffect(() => {
     const el = scrollRef.current;
     if (!el) return;
-    const ro = new ResizeObserver(([entry]) => setScrollContainerWidth(entry.contentRect.width));
+    const ro = new ResizeObserver(([entry]) => {
+      setScrollContainerWidth(entry.contentRect.width);
+    });
     ro.observe(el);
     return () => ro.disconnect();
   }, []);
 
-  // Ctrl+scroll zooms in/out anchored to the cursor; plain scroll pans the timeline.
+  // Ctrl+scroll zooms anchored to cursor; plain scroll pans.
   useEffect(() => {
     const el = scrollRef.current;
     if (!el) return;
     const onWheel = (e) => {
       e.preventDefault();
+      const isVert = verticalRef.current;
       if (e.ctrlKey) {
         const rect = el.getBoundingClientRect();
-        const mouseX = e.clientX - rect.left;
         const cur = pxPerSecondRef.current;
-        const timeAtCursor = (el.scrollLeft + mouseX) / cur;
+        const mousePos = isVert ? e.clientY - rect.top : e.clientX - rect.left;
+        const scrollPos = isVert ? el.scrollTop : el.scrollLeft;
+        const timeAtCursor = (scrollPos + mousePos) / cur;
         const delta = e.deltaMode === 1 ? e.deltaY * 30 : e.deltaY;
         const newPx = Math.max(2, Math.min(100, cur * Math.exp(-delta * 0.001)));
-        pendingScrollRef.current = Math.max(0, timeAtCursor * newPx - mouseX);
+        pendingScrollRef.current = Math.max(0, timeAtCursor * newPx - mousePos);
         setPxPerSecond(newPx);
       } else {
-        el.scrollLeft += e.deltaX + e.deltaY;
+        if (isVert) el.scrollTop += e.deltaY;
+        else el.scrollLeft += e.deltaX + e.deltaY;
       }
     };
     el.addEventListener('wheel', onWheel, { passive: false });
     return () => el.removeEventListener('wheel', onWheel);
-  }, [setPxPerSecond]);
+  }, [setPxPerSecond, vertical]);
 
   // After a zoom, restore scroll position so the point under the cursor stays fixed.
   useEffect(() => {
     if (pendingScrollRef.current === null || !scrollRef.current) return;
-    scrollRef.current.scrollLeft = pendingScrollRef.current;
+    if (verticalRef.current) scrollRef.current.scrollTop = pendingScrollRef.current;
+    else scrollRef.current.scrollLeft = pendingScrollRef.current;
     pendingScrollRef.current = null;
   }, [pxPerSecond]);
 
@@ -165,29 +207,25 @@ export const TimelineEditor = forwardRef(function TimelineEditor(props, ref) {
     useSensor(PointerSensor, { activationConstraint: { distance: 6 } })
   );
 
-  // Custom strategy: for multi-drag, widen the "active" rect to the combined width
-  // of all selected blocks so non-selected items make room for the whole group.
+  // Unified strategy: single-drag uses the appropriate base strategy; multi-drag
+  // expands the active rect along the sort axis to the combined selected size.
   const sortingStrategy = useCallback((args) => {
-    if (!dragActiveId || selectedIds.size <= 1) {
-      return horizontalListSortingStrategy(args);
-    }
+    const baseStrategy = verticalRef.current ? verticalListSortingStrategy : horizontalListSortingStrategy;
+    if (!dragActiveId || selectedIds.size <= 1) return baseStrategy(args);
     const { activeIndex, rects } = args;
-    const totalSelectedWidth = blocks.reduce((sum, b, i) => (
-      selectedIds.has(b.id) ? sum + (rects[i]?.width ?? 0) : sum
+    const dimKey = verticalRef.current ? 'height' : 'width';
+    const totalSelectedDim = blocks.reduce((sum, b, i) => (
+      selectedIds.has(b.id) ? sum + (rects[i]?.[dimKey] ?? 0) : sum
     ), 0);
-    // Use the visually-scaled width so resting blocks open a gap that matches
-    // the shrunk group size; the gap expands to full size on drop.
     const fakeRects = rects.map((r, i) =>
-      i === activeIndex ? { ...r, width: totalSelectedWidth * MULTI_DRAG_SCALE } : r
+      i === activeIndex ? { ...r, [dimKey]: totalSelectedDim * MULTI_DRAG_SCALE } : r
     );
-    return horizontalListSortingStrategy({ ...args, rects: fakeRects });
+    return baseStrategy({ ...args, rects: fakeRects });
   }, [dragActiveId, selectedIds, blocks]);
 
   const totalSec = blocksToTotalDuration(blocks);
   const contentWidth = totalSec * pxPerSecond;
-  const totalWidth = scrollContainerWidth > 0 && contentWidth <= scrollContainerWidth
-    ? scrollContainerWidth
-    : contentWidth + 120;
+  const contentHeight = totalSec * pxPerSecond;
 
   function handleDragStart(event) {
     setDragActiveId(event.active.id);
@@ -203,10 +241,8 @@ export const TimelineEditor = forwardRef(function TimelineEditor(props, ref) {
     if (!active || !over || active.id === over.id) return;
 
     if (selectedIds.has(active.id) && selectedIds.size > 1) {
-      // Snap all blocks to final positions this frame; only the inner scale animates.
       setSuppressTransition(true);
       requestAnimationFrame(() => setSuppressTransition(false));
-      // Multi-drag: move the whole selection together
       const selected = blocks.filter((b) => selectedIds.has(b.id));
       const rest = blocks.filter((b) => !selectedIds.has(b.id));
       const oldDraggedIdx = blocks.findIndex((b) => b.id === active.id);
@@ -215,7 +251,6 @@ export const TimelineEditor = forwardRef(function TimelineEditor(props, ref) {
 
       let insertAt;
       if (overInRest === -1) {
-        // 'over' target is itself selected — append at end
         insertAt = rest.length;
       } else {
         insertAt = oldOverIdx > oldDraggedIdx ? overInRest + 1 : overInRest;
@@ -238,8 +273,8 @@ export const TimelineEditor = forwardRef(function TimelineEditor(props, ref) {
   }
 
   const handleContainerPointerDown = useCallback((e) => {
-    // Don't steal events from blocks or resize handles
     if (e.target.closest('[data-block]')) return;
+    if (e.target.closest('[data-ruler]')) return;
     const rect = containerRef.current.getBoundingClientRect();
     const x = e.clientX - rect.left;
     const y = e.clientY - rect.top;
@@ -264,14 +299,12 @@ export const TimelineEditor = forwardRef(function TimelineEditor(props, ref) {
     const hit = new Set();
     blocks.forEach((b, i) => {
       if (selectionMode !== 'all' && b.type !== selectionMode) return;
-      const bLeft = blockStartTime(blocks, i) * pxPerSecond;
-      const bRight = bLeft + b.duration * pxPerSecond;
-      const bTop = BLOCK_TOP;
-      const bBottom = BLOCK_TOP + BLOCK_HEIGHT;
+      const { left: bLeft, right: bRight, top: bTop, bottom: bBottom } =
+        getBlockBounds(blocks, i, pxPerSecond, vertical, undefined, vertBlockWidth);
       if (bRight > minX && bLeft < maxX && bBottom > minY && bTop < maxY) hit.add(b.id);
     });
     setSelectedIds(hit);
-  }, [blocks, pxPerSecond, setSelectedIds, selectionMode]);
+  }, [blocks, pxPerSecond, vertical, vertBlockWidth, setSelectedIds, selectionMode]);
 
   const handleContainerPointerUp = useCallback(() => {
     rubberStart.current = null;
@@ -295,75 +328,109 @@ export const TimelineEditor = forwardRef(function TimelineEditor(props, ref) {
     display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: 'monospace',
   });
 
+  const toolbarButtons = <>
+    <button style={selModeBtnStyle('all')} title="Select any block" onClick={() => setSelectionMode('all')}>
+      <TbMarquee size={16} color={selectionMode === 'all' ? 'rgba(255,255,255,0.85)' : 'rgba(255,255,255,0.28)'} />
+    </button>
+    <button style={selModeBtnStyle('work')} title="Select only work blocks" onClick={() => setSelectionMode('work')}>
+      <TbMarquee2 size={16} color={selectionMode === 'work' ? 'rgba(255,145,100,0.9)' : 'rgba(255,145,100,0.3)'} />
+    </button>
+    <button style={selModeBtnStyle('rest')} title="Select only rest blocks" onClick={() => setSelectionMode('rest')}>
+      <TbMarquee2 size={16} color={selectionMode === 'rest' ? 'rgba(130,165,220,0.9)' : 'rgba(130,165,220,0.3)'} />
+    </button>
+    <div style={{ height: 1, width: '100%', background: 'rgba(255,255,255,0.1)', margin: '2px 0' }} />
+    <button style={zoomBtnStyle(false)} title="Zoom in (Ctrl++)" onClick={() => zoomBy(1.4)}>+</button>
+    <button style={zoomBtnStyle(false)} title="Zoom out (Ctrl+−)" onClick={() => zoomBy(1 / 1.4)}>−</button>
+    <button style={zoomBtnStyle(false)} title="Fit all to screen (Ctrl+0)" onClick={() => fitToScreen()}>⟷</button>
+    <button style={zoomBtnStyle(selectedIds.size === 0)} title="Zoom to selection (Z)" onClick={zoomToSelection} disabled={selectedIds.size === 0}>⊡</button>
+    {!isMobile && (
+      <button
+        style={zoomBtnStyle(false)}
+        title={vertical ? 'Switch to horizontal layout' : 'Switch to vertical layout'}
+        onClick={() => setVerticalToggle((v) => !v)}
+      >
+        {vertical ? '⇆' : '⇅'}
+      </button>
+    )}
+  </>;
+
   return (
     <div style={{
       position: 'relative',
       display: 'flex', flexDirection: 'column', width: '100%',
+      ...(vertical ? { flex: 1, minHeight: 0 } : {}),
       background: '#14152a', borderRadius: 8, border: '1px solid rgba(255,255,255,0.1)',
       overflow: 'hidden',
     }}>
-      {/* Floating zoom toolbar */}
-      <div style={{
-        position: 'absolute', top: RULER_HEIGHT + 6, left: 8, zIndex: 20,
-        display: 'flex', gap: 2, alignItems: 'center',
-        background: 'rgba(14,15,32,0.82)', borderRadius: 5, padding: 3,
-        border: '1px solid rgba(255,255,255,0.1)',
-        backdropFilter: 'blur(6px)',
-      }}>
-        <button style={zoomBtnStyle(false)} title="Zoom out (Ctrl+−)" onClick={() => zoomBy(1 / 1.4)}>−</button>
-        <button style={zoomBtnStyle(false)} title="Zoom in (Ctrl++)" onClick={() => zoomBy(1.4)}>+</button>
-        <div style={{ width: 1, alignSelf: 'stretch', background: 'rgba(255,255,255,0.12)', margin: '1px 2px' }} />
-        <button style={zoomBtnStyle(false)} title="Fit all to screen (Ctrl+0)" onClick={() => fitToScreen()}>⟷</button>
-        <button style={zoomBtnStyle(selectedIds.size === 0)} title="Zoom to selection (Z)" onClick={zoomToSelection} disabled={selectedIds.size === 0}>⊡</button>
-      </div>
-
-      {/* Selection mode toolbar */}
-      <div style={{
-        position: 'absolute', top: RULER_HEIGHT + 6, right: 8, zIndex: 20,
-        display: 'flex', gap: 2, alignItems: 'center',
-        background: 'rgba(14,15,32,0.82)', borderRadius: 5, padding: 3,
-        border: '1px solid rgba(255,255,255,0.1)',
-        backdropFilter: 'blur(6px)',
-      }}>
-        <button style={selModeBtnStyle('all')} title="Select any block" onClick={() => setSelectionMode('all')}>
-          <TbMarquee size={16} color={selectionMode === 'all' ? 'rgba(255,255,255,0.85)' : 'rgba(255,255,255,0.28)'} />
-        </button>
-        <div style={{ width: 1, alignSelf: 'stretch', background: 'rgba(255,255,255,0.12)', margin: '1px 2px' }} />
-        <button style={selModeBtnStyle('work')} title="Select only work blocks" onClick={() => setSelectionMode('work')}>
-          <TbMarquee2 size={16} color={selectionMode === 'work' ? 'rgba(255,145,100,0.9)' : 'rgba(255,145,100,0.3)'} />
-        </button>
-        <button style={selModeBtnStyle('rest')} title="Select only rest blocks" onClick={() => setSelectionMode('rest')}>
-          <TbMarquee2 size={16} color={selectionMode === 'rest' ? 'rgba(130,165,220,0.9)' : 'rgba(130,165,220,0.3)'} />
-        </button>
-      </div>
-
-      {/* Scrollable container: ruler + canvas scroll together */}
-      <div ref={scrollRef} style={{ overflowX: 'auto', overflowY: 'hidden', width: '100%' }}>
-        {/* Ruler */}
-        <div style={{ width: totalWidth, minWidth: '100%', height: RULER_HEIGHT, borderBottom: '1px solid rgba(255,255,255,0.07)', background: '#1a1b30' }}>
-          <svg width={totalWidth} height={RULER_HEIGHT} style={{ display: 'block' }}>
-            {ticks.map(({ t, x }) => (
-              <g key={t}>
-                <line x1={x} y1={14} x2={x} y2={RULER_HEIGHT} stroke="rgba(255,255,255,0.25)" strokeWidth={1} />
-                <text x={x + 3} y={12} fontSize={9} fill="rgba(255,255,255,0.5)" fontFamily="monospace">{t}s</text>
-              </g>
-            ))}
-          </svg>
+      {/* In horizontal mode, toolbar floats over the canvas (no scrollbar conflict) */}
+      {!vertical && (
+        <div style={{
+          position: 'absolute', top: RULER_HEIGHT + 6, right: 8, zIndex: 20,
+          display: 'flex', flexDirection: 'column', gap: 2, alignItems: 'center',
+          background: 'rgba(14,15,32,0.82)', borderRadius: 5, padding: 3,
+          border: '1px solid rgba(255,255,255,0.1)', backdropFilter: 'blur(6px)',
+        }}>
+          {toolbarButtons}
         </div>
+      )}
 
-        {/* Canvas */}
+      {/* In vertical mode, toolbar is a flex sibling — sits outside the scrollbar */}
+      <div style={{ flex: vertical ? 1 : undefined, display: 'flex', minHeight: 0 }}>
+        {/* Scrollable container */}
+        <div
+          ref={scrollRef}
+          style={vertical
+            ? { flex: 1, overflowX: 'hidden', overflowY: 'auto' }
+            : { overflowX: 'auto', overflowY: 'hidden', width: '100%' }
+          }
+        >
+        {/* Horizontal ruler — only in horizontal mode */}
+        {!vertical && (
+          <div style={{ width: contentWidth, minWidth: '100%', height: RULER_HEIGHT, borderBottom: '1px solid rgba(255,255,255,0.07)', background: '#1a1b30' }}>
+            <svg width="100%" height={RULER_HEIGHT} style={{ display: 'block' }}>
+              {ticks.map(({ t, pos }) => (
+                <g key={t}>
+                  <line x1={pos} y1={14} x2={pos} y2={RULER_HEIGHT} stroke="rgba(255,255,255,0.25)" strokeWidth={1} />
+                  <text x={pos + 3} y={12} fontSize={9} fill="rgba(255,255,255,0.5)" fontFamily="monospace">{t}s</text>
+                </g>
+              ))}
+            </svg>
+          </div>
+        )}
+
+        {/* Canvas — minWidth/minHeight:'100%' ensures no scrollbar when content fits */}
         <div
           ref={containerRef}
-          style={{ position: 'relative', height: TIMELINE_CANVAS_HEIGHT, width: totalWidth, minWidth: '100%' }}
+          style={vertical
+            ? { position: 'relative', width: '100%', height: contentHeight, minHeight: '100%' }
+            : { position: 'relative', height: TIMELINE_CANVAS_HEIGHT, width: contentWidth, minWidth: '100%' }
+          }
           onPointerDown={handleContainerPointerDown}
           onPointerMove={handleContainerPointerMove}
           onPointerUp={handleContainerPointerUp}
         >
-          <WaveformSVG blocks={blocks} pxPerSecond={pxPerSecond} width={totalWidth} height={TIMELINE_CANVAS_HEIGHT} />
+          {/* Vertical ruler — inside canvas so it scrolls with the blocks */}
+          {vertical && (
+            <div
+              data-ruler="true"
+              style={{ position: 'absolute', left: 0, top: 0, width: VERTICAL_RULER_WIDTH, height: '100%', borderRight: '1px solid rgba(255,255,255,0.07)', background: '#1a1b30', zIndex: 5, pointerEvents: 'none' }}
+            >
+              <svg width={VERTICAL_RULER_WIDTH} height="100%" style={{ display: 'block' }}>
+                {ticks.map(({ t, pos }) => (
+                  <g key={t}>
+                    <line x1={VERTICAL_RULER_WIDTH - 6} y1={pos} x2={VERTICAL_RULER_WIDTH} y2={pos} stroke="rgba(255,255,255,0.25)" strokeWidth={1} />
+                    <text x={2} y={pos > 8 ? pos - 2 : pos + 9} fontSize={9} fill="rgba(255,255,255,0.5)" fontFamily="monospace">{t}s</text>
+                  </g>
+                ))}
+              </svg>
+            </div>
+          )}
+
+          <WaveformSVG vertical={vertical} blocks={blocks} pxPerSecond={pxPerSecond} width={contentWidth} height={TIMELINE_CANVAS_HEIGHT} />
 
           <DndContext
             sensors={sensors}
-            collisionDetection={horizontalOnlyCollision}
+            collisionDetection={vertical ? verticalCollision : horizontalCollision}
             onDragStart={handleDragStart}
             onDragEnd={handleDragEnd}
             onDragCancel={handleDragCancel}
@@ -379,10 +446,11 @@ export const TimelineEditor = forwardRef(function TimelineEditor(props, ref) {
                   index={i}
                   blocks={blocks}
                   pxPerSecond={pxPerSecond}
+                  vertical={vertical}
+                  vertBlockWidth={vertBlockWidth}
                   onDoubleClick={(clicked) => {
                     if (selectedIds.has(clicked.id) && selectedIds.size > 1) {
-                      const sorted = blocks.filter((b) => selectedIds.has(b.id));
-                      setEditingBlocks(sorted);
+                      setEditingBlocks(blocks.filter((b) => selectedIds.has(b.id)));
                     } else {
                       setEditingBlocks([clicked]);
                     }
@@ -410,7 +478,19 @@ export const TimelineEditor = forwardRef(function TimelineEditor(props, ref) {
             }} />
           )}
         </div>
-      </div>
+        </div>{/* end scrollRef */}
+
+        {/* Vertical mode toolbar — sits to the right of the scrollbar */}
+        {vertical && (
+          <div style={{
+            display: 'flex', flexDirection: 'column', gap: 2, alignItems: 'center',
+            padding: 3, borderLeft: '1px solid rgba(255,255,255,0.1)',
+            background: 'rgba(14,15,26,0.7)',
+          }}>
+            {toolbarButtons}
+          </div>
+        )}
+      </div>{/* end flex row wrapper */}
 
       {editingBlocks && (
         <BlockEditModal blocks={editingBlocks} onClose={() => setEditingBlocks(null)} />

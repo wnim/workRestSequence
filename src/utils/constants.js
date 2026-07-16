@@ -3,6 +3,8 @@ export const TIMELINE_CANVAS_HEIGHT = 280;
 export const BLOCK_HEIGHT = 50;
 export const BLOCK_TOP = Math.round((TIMELINE_CANVAS_HEIGHT - BLOCK_HEIGHT) / 2);
 
+export const VERTICAL_RULER_WIDTH = 36;
+
 // Visual scale applied to all blocks in an active multi-block drag
 export const MULTI_DRAG_SCALE = 0.75;
 

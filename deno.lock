@@ -33,6 +33,7 @@
         "npm:oxlint@^1.71.0",
         "npm:postcss@^8.5.16",
         "npm:react-dom@^19.2.7",
+        "npm:react-icons@^5.7.0",
         "npm:react@^19.2.7",
         "npm:shadcn@^4.13.0",
         "npm:tailwind-merge@^3.6.0",

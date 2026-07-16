@@ -144,6 +144,10 @@ body {
   .toolbar-desktop-only {
     display: none !important;
   }
+  .app-content {
+    padding: 8px !important;
+    justify-content: stretch !important;
+  }
 }
 
 @layer base {

@@ -41,7 +41,8 @@
       "Skill(run:*)",
       "Bash(cat /tmp/vite-wrs.log)",
       "Read(//tmp/**)",
-      "Bash(chromium-cli --session wrs)"
+      "Bash(chromium-cli --session wrs)",
+      "Bash(chromium-cli --session timeline)"
     ]
   }
 }

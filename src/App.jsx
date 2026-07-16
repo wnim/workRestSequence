@@ -190,8 +190,8 @@ export default function App() {
         </Button>
       </div>
 
-      {/* Content — timeline centered vertically */}
-      <div style={{ flex: 1, overflow: 'hidden', display: 'flex', flexDirection: 'column', justifyContent: 'center', padding: '16px' }}>
+      {/* Content */}
+      <div style={{ flex: 1, overflow: 'hidden', display: 'flex', flexDirection: 'column', justifyContent: 'center', padding: '16px' }} className="app-content">
         {blocks.length === 0 ? (
           <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 16 }}>
             <p style={{ color: 'rgba(255,255,255,0.4)', fontFamily: 'monospace', fontSize: 13, margin: 0 }}>
@@ -213,9 +213,9 @@ export default function App() {
           display: 'flex', alignItems: 'center', gap: 10, padding: '10px 16px',
           background: '#22243c', borderTop: '1px solid rgba(255,255,255,0.1)',
         }}>
-          <Button className="toolbar-desktop-only" title="Add work block (W)" onClick={() => addBlock('work')} style={{ background: 'oklch(0.58 0.20 35)', color: 'white', fontSize: 12, height: 30, padding: '0 12px' }}>+ Work</Button>
-          <Button className="toolbar-desktop-only" title="Add rest block (R)" onClick={() => addBlock('rest')} style={{ background: 'oklch(0.32 0.06 250)', color: 'rgba(255,255,255,0.85)', border: '1px solid rgba(255,255,255,0.2)', fontSize: 12, height: 30, padding: '0 12px' }}>+ Rest</Button>
-          <Button className="toolbar-desktop-only" title="Remove all blocks" onClick={() => setBlocks([])} style={{ fontSize: 12, height: 30, padding: '0 12px', background: 'transparent', color: 'rgba(255,255,255,0.5)', border: '1px solid rgba(255,255,255,0.18)' }}>Clear</Button>
+          <Button title="Add work block (W)" onClick={() => addBlock('work')} style={{ background: 'oklch(0.58 0.20 35)', color: 'white', fontSize: 12, height: 34, padding: '0 14px' }}>+ Work</Button>
+          <Button title="Add rest block (R)" onClick={() => addBlock('rest')} style={{ background: 'oklch(0.32 0.06 250)', color: 'rgba(255,255,255,0.85)', border: '1px solid rgba(255,255,255,0.2)', fontSize: 12, height: 34, padding: '0 14px' }}>+ Rest</Button>
+          <Button className="toolbar-desktop-only" title="Remove all blocks" onClick={() => setBlocks([])} style={{ fontSize: 12, height: 34, padding: '0 12px', background: 'transparent', color: 'rgba(255,255,255,0.5)', border: '1px solid rgba(255,255,255,0.18)' }}>Clear</Button>
           <div style={{ flex: 1 }} />
           <Button
             title="Play workout (Space / K)"

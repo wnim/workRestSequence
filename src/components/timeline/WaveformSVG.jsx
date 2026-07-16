@@ -13,7 +13,8 @@ function buildPath(blocks, pxPerSecond) {
   return d;
 }
 
-export function WaveformSVG({ blocks, pxPerSecond, width, height }) {
+export function WaveformSVG({ blocks, pxPerSecond, width, height, vertical }) {
+  if (vertical) return null;
   const path = buildPath(blocks, pxPerSecond);
   return (
     <svg

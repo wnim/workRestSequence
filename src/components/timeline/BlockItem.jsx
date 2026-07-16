@@ -1,8 +1,8 @@
 import { useState } from 'react';
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
-import { blockStartTime } from '../../utils/time';
-import { BLOCK_TOP, BLOCK_HEIGHT, MULTI_DRAG_SCALE } from '../../utils/constants';
+import { blockStartTime, getBlockBounds } from '../../utils/time';
+import { MULTI_DRAG_SCALE } from '../../utils/constants';
 import { ResizeHandle } from './ResizeHandle';
 import useStore from '../../store/workoutStore';
 
@@ -10,7 +10,7 @@ function snapTo(value, step) {
   return Math.round(value / step) * step;
 }
 
-export function BlockItem({ block, index, blocks, pxPerSecond, onDoubleClick, dragActiveId, dragDeltaX, dragDeltaY, suppressTransition }) {
+export function BlockItem({ block, index, blocks, pxPerSecond, vertical, vertBlockWidth, onDoubleClick, dragActiveId, dragDeltaX, dragDeltaY, suppressTransition }) {
   const selectedIds = useStore((s) => s.selectedIds);
   const setSelectedIds = useStore((s) => s.setSelectedIds);
   const toggleSelected = useStore((s) => s.toggleSelected);
@@ -28,7 +28,6 @@ export function BlockItem({ block, index, blocks, pxPerSecond, onDoubleClick, dr
   const isWork = block.type === 'work';
   const isResizing = resizeDeltaPx !== 0;
 
-  // True when another selected block is being dragged and this block rides along
   const isCompanion = !!(
     dragActiveId &&
     dragActiveId !== block.id &&
@@ -36,21 +35,20 @@ export function BlockItem({ block, index, blocks, pxPerSecond, onDoubleClick, dr
     selectedIds.has(dragActiveId) &&
     selectedIds.size > 1
   );
-
-  // True for every block in an active multi-block drag (leader + companions)
   const isInMultiDrag = isCompanion || (isDragging && selectedIds.size > 1);
 
-  // Compute per-block X offset that packs the group tightly on the inner (visual) div.
-  // Each block's inner div translates so that the scaled blocks appear side-by-side with
-  // no gap, anchored at the leftmost selected block's original left edge.
-  // Derived from: desiredVisualLeft = L0 + sum(w[j]*S for j<i)
-  //   actualVisualLeft (scale from center) = Li + wi*(1-S)/2
-  //   offsetX = desiredVisualLeft - actualVisualLeft
-  let innerGroupOffsetX = 0;
+  // Compute per-block offset that packs the group tightly when multi-dragging.
+  // The math is axis-agnostic: L = start position, w = size, both in px.
+  // In horizontal mode this becomes translateX; in vertical mode translateY.
+  let innerGroupOffset = 0;
   if (isInMultiDrag) {
     const S = MULTI_DRAG_SCALE;
     const selectedData = blocks
-      .map((b, i) => ({ id: b.id, w: b.duration * pxPerSecond, L: blockStartTime(blocks, i) * pxPerSecond }))
+      .map((b, i) => ({
+        id: b.id,
+        w: b.duration * pxPerSecond,
+        L: blockStartTime(blocks, i) * pxPerSecond,
+      }))
       .filter((b) => selectedIds.has(b.id))
       .sort((a, b) => a.L - b.L);
     const myIdx = selectedData.findIndex((b) => b.id === block.id);
@@ -60,26 +58,23 @@ export function BlockItem({ block, index, blocks, pxPerSecond, onDoubleClick, dr
       const L0 = selectedData[0].L;
       const Li = blockStartTime(blocks, index) * pxPerSecond;
       const wi = block.duration * pxPerSecond;
-      innerGroupOffsetX = L0 - Li + sumPrev - wi * (1 - S) / 2;
+      innerGroupOffset = L0 - Li + sumPrev - wi * (1 - S) / 2;
     }
   }
 
-  // Compute snapped display duration from raw pixel delta
   const rawNewDuration = block.duration + resizeDeltaPx / pxPerSecond;
   const snappedDuration = isResizing
     ? Math.max(resizeStep, Math.min(3600, snapTo(rawNewDuration, resizeStep)))
     : block.duration;
 
-  const left = blockStartTime(blocks, index) * pxPerSecond;
-  const width = Math.max(4, snappedDuration * pxPerSecond);
+  const bounds = getBlockBounds(blocks, index, pxPerSecond, vertical, isResizing ? snappedDuration : undefined, vertBlockWidth);
 
-  // Outer div: dnd-kit measures this for collision/sorting — keep it transparent, full-size
   const outerStyle = {
     position: 'absolute',
-    left,
-    top: BLOCK_TOP,
-    width,
-    height: BLOCK_HEIGHT,
+    left: bounds.left,
+    top: bounds.top,
+    width: bounds.width,
+    height: bounds.height,
     transform: isCompanion
       ? `translate(${dragDeltaX}px, ${dragDeltaY}px)`
       : CSS.Transform.toString(transform),
@@ -90,7 +85,6 @@ export function BlockItem({ block, index, blocks, pxPerSecond, onDoubleClick, dr
     boxSizing: 'border-box',
   };
 
-  // Inner div: all visuals live here so scale never affects dnd-kit's rect measurements
   const innerStyle = {
     position: 'absolute',
     inset: 0,
@@ -100,12 +94,13 @@ export function BlockItem({ block, index, blocks, pxPerSecond, onDoubleClick, dr
     border: isSelected ? '2px solid oklch(0.75 0.15 200)' : '1px solid rgba(255,255,255,0.15)',
     opacity: (isDragging || isCompanion) ? 0.5 : 1,
     display: 'flex',
-    flexDirection: 'column',
-    justifyContent: 'center',
+    flexDirection: vertical ? 'row' : 'column',
+    alignItems: vertical ? 'center' : undefined,
+    justifyContent: vertical ? undefined : 'center',
     paddingLeft: 6,
     overflow: 'hidden',
     transform: isInMultiDrag
-      ? `translateX(${innerGroupOffsetX}px) scale(${MULTI_DRAG_SCALE})`
+      ? `translate${vertical ? 'Y' : 'X'}(${innerGroupOffset}px) scale(${MULTI_DRAG_SCALE})`
       : 'scale(1)',
     transition: 'transform 120ms ease',
   };
@@ -130,6 +125,11 @@ export function BlockItem({ block, index, blocks, pxPerSecond, onDoubleClick, dr
   const labelText = block.label || (isWork ? 'Work' : 'Rest');
   const durationText = `${snappedDuration}s`;
 
+  // In vertical mode, always show text (height gives enough room).
+  // In horizontal mode, hide text if the block is too narrow.
+  const showText = vertical || bounds.width > 20;
+  const showLabel = vertical || bounds.width > 50;
+
   return (
     <div
       ref={setNodeRef}
@@ -141,17 +141,24 @@ export function BlockItem({ block, index, blocks, pxPerSecond, onDoubleClick, dr
       onDoubleClick={(e) => { e.stopPropagation(); onDoubleClick?.(block); }}
     >
       <div style={innerStyle}>
-        {width > 20 && (
-          <span style={{ fontSize: 10, color: 'rgba(255,255,255,0.9)', whiteSpace: 'nowrap', overflow: 'hidden', lineHeight: 1.3 }}>
-            {width > 50 ? labelText : ''}
+        {showText && (
+          <span style={{ fontSize: vertical ? 12 : 10, color: 'rgba(255,255,255,0.9)', whiteSpace: 'nowrap', overflow: 'hidden', lineHeight: 1.3 }}>
+            {showLabel ? labelText : ''}
           </span>
         )}
-        {width > 20 && (
-          <span style={{ fontSize: isResizing ? 11 : 10, fontWeight: isResizing ? 600 : 400, color: isResizing ? 'white' : 'rgba(255,255,255,0.55)', whiteSpace: 'nowrap', lineHeight: 1.3 }}>
+        {showText && (
+          <span style={{
+            fontSize: isResizing ? 11 : (vertical ? 11 : 10),
+            fontWeight: isResizing ? 600 : 400,
+            color: isResizing ? 'white' : 'rgba(255,255,255,0.55)',
+            whiteSpace: 'nowrap',
+            lineHeight: 1.3,
+            marginLeft: vertical ? 6 : 0,
+          }}>
             {durationText}
           </span>
         )}
-        <ResizeHandle onResizeMove={handleResizeMove} onResizeEnd={handleResizeEnd} />
+        <ResizeHandle vertical={vertical} onResizeMove={handleResizeMove} onResizeEnd={handleResizeEnd} />
       </div>
     </div>
   );
