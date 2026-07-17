@@ -84,6 +84,9 @@ export const TimelineEditor = forwardRef(function TimelineEditor(props, ref) {
   const verticalRef = useRef(vertical);
   useEffect(() => { verticalRef.current = vertical; }, [vertical]);
 
+  const prevVertical = useRef(vertical);
+  const fitToScreenRef = useRef(null);
+
   const containerRef = useRef(null);
   const scrollRef = useRef(null);
   const pxPerSecondRef = useRef(pxPerSecond);
@@ -147,6 +150,13 @@ export const TimelineEditor = forwardRef(function TimelineEditor(props, ref) {
   }, [setPxPerSecond]);
 
   useImperativeHandle(ref, () => ({ fitToScreen, zoomToSelection, zoomBy }), [fitToScreen, zoomToSelection, zoomBy]);
+
+  fitToScreenRef.current = fitToScreen;
+  useEffect(() => {
+    if (prevVertical.current === vertical) return;
+    prevVertical.current = vertical;
+    requestAnimationFrame(() => fitToScreenRef.current());
+  }, [vertical]);
 
   useEffect(() => {
     const el = scrollRef.current;
