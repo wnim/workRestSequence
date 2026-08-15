@@ -1,4 +1,4 @@
-// Timeline block geometry — shared by BlockItem, TimelineEditor (hit-test), WaveformSVG
+// Timeline block geometry — shared by BlockItem, TimelineEditor (hit-test), BlocksBaseline
 export const TIMELINE_CANVAS_HEIGHT = 280;
 export const BLOCK_HEIGHT = 50;
 export const BLOCK_TOP = Math.round((TIMELINE_CANVAS_HEIGHT - BLOCK_HEIGHT) / 2);

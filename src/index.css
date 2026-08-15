@@ -8,7 +8,7 @@
 :root {
   --color-work: oklch(0.62 0.20 35);
   --color-rest: oklch(0.32 0.06 250);
-  --color-waveform: oklch(0.62 0.14 200);
+  --color-baseline: oklch(0.62 0.14 200);
   --background: oklch(1 0 0);
   --foreground: oklch(0.145 0 0);
   --card: oklch(1 0 0);

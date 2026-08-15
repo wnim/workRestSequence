@@ -1,17 +1,17 @@
-import { useRef, useEffect, useCallback } from 'react';
+import { useRef, useEffect, useCallback, useState } from 'react';
 import { blocksToTotalDuration } from '../../utils/time';
 
 function buildSegments(blocks) {
   const segs = [];
   let t = 0;
   for (const b of blocks) {
-    segs.push({ x: t, width: b.duration, type: b.type });
+    segs.push({ x: t, width: b.duration, type: b.type, label: b.label });
     t += b.duration;
   }
   return segs;
 }
 
-export function WaveformStrip({ blocks, currentPositionMs, onScrubStart, onScrubMove, onScrubEnd }) {
+export function BlocksBar({ blocks, currentPositionMs, onScrubStart, onScrubMove, onScrubEnd }) {
   const totalSec = blocksToTotalDuration(blocks);
   const height = 44;
   const wrapperRef = useRef(null);
@@ -56,6 +56,21 @@ export function WaveformStrip({ blocks, currentPositionMs, onScrubStart, onScrub
   } : undefined;
 
   const segments = buildSegments(blocks);
+  const [tooltip, setTooltip] = useState(null);
+
+  const handleMouseMove = useCallback((e) => {
+    if (!wrapperRef.current || totalSec <= 0) return;
+    const rect = wrapperRef.current.getBoundingClientRect();
+    const fraction = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
+    const sec = fraction * totalSec;
+    const seg = segments.find(s => sec >= s.x && sec < s.x + s.width);
+    if (seg) {
+      setTooltip({ x: e.clientX - rect.left, label: seg.label || (seg.type === 'work' ? 'Work' : 'Rest') });
+    } else {
+      setTooltip(null);
+    }
+  }, [totalSec, segments]);
+
   const BAR_TOP = 12;
   const BAR_BOT = 12;
   const barH = height - BAR_TOP - BAR_BOT;
@@ -72,6 +87,8 @@ export function WaveformStrip({ blocks, currentPositionMs, onScrubStart, onScrub
         cursor: onScrubStart ? 'pointer' : undefined,
       }}
       onMouseDown={handleMouseDown}
+      onMouseMove={handleMouseMove}
+      onMouseLeave={() => setTooltip(null)}
     >
       <svg
         width="100%"
@@ -130,6 +147,28 @@ export function WaveformStrip({ blocks, currentPositionMs, onScrubStart, onScrub
           opacity={0.9}
         />
       </svg>
+
+      {/* Block label tooltip */}
+      {tooltip && (
+        <div
+          style={{
+            position: 'absolute',
+            bottom: height + 6,
+            left: tooltip.x,
+            transform: 'translateX(-50%)',
+            background: 'rgba(0,0,0,0.8)',
+            color: 'rgba(255,255,255,0.92)',
+            fontSize: '0.75rem',
+            fontFamily: 'monospace',
+            padding: '3px 8px',
+            borderRadius: 4,
+            whiteSpace: 'nowrap',
+            pointerEvents: 'none',
+          }}
+        >
+          {tooltip.label}
+        </div>
+      )}
 
       {/* Playhead handle — CSS circle avoids SVG distortion */}
       <div

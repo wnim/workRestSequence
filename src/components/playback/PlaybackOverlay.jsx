@@ -1,10 +1,11 @@
 import { msToStopwatch, msToDisplay } from '../../utils/time';
 import useStore from '../../store/workoutStore';
-import { WaveformStrip } from './WaveformStrip';
+import { BlocksBar } from './BlocksBar';
 import { Button } from '../ui/button';
 
 export function PlaybackOverlay({ playback }) {
   const blocks = useStore((s) => s.blocks);
+  const activeWorkoutName = useStore((s) => s.activeWorkoutName);
   const playState = useStore((s) => s.playState);
   const { currentPositionMs, blockIndex, blockElapsedMs, totalMs, togglePause, stop, seek, beginScrub, scrubTo, endScrub } = playback;
 
@@ -38,6 +39,12 @@ export function PlaybackOverlay({ playback }) {
 
       {/* Content sits above the absolute backgrounds via z-index */}
       <div style={{ position: 'relative', zIndex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+        {activeWorkoutName && (
+          <div style={{ fontSize: '1rem', fontWeight: 600, color: 'rgba(255,255,255,0.5)', letterSpacing: '0.12em', textTransform: 'uppercase', marginBottom: 16 }}>
+            {activeWorkoutName}
+          </div>
+        )}
+
         <div style={{ fontSize: '10rem', fontWeight: 700, lineHeight: 1, color: 'rgba(255,255,255,0.95)', letterSpacing: '-4px' }}>
           {countdown}
         </div>
@@ -93,7 +100,7 @@ export function PlaybackOverlay({ playback }) {
       </div>
 
       <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, zIndex: 1 }}>
-        <WaveformStrip blocks={blocks} currentPositionMs={currentPositionMs} onScrubStart={beginScrub} onScrubMove={scrubTo} onScrubEnd={endScrub} />
+        <BlocksBar blocks={blocks} currentPositionMs={currentPositionMs} onScrubStart={beginScrub} onScrubMove={scrubTo} onScrubEnd={endScrub} />
       </div>
     </div>
   );

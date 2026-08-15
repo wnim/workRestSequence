@@ -13,7 +13,7 @@ import useStore from '../../store/workoutStore';
 import { blockStartTime, blocksToTotalDuration, getBlockBounds } from '../../utils/time';
 import { TIMELINE_CANVAS_HEIGHT, BLOCK_TOP, BLOCK_HEIGHT, MULTI_DRAG_SCALE, VERTICAL_RULER_WIDTH } from '../../utils/constants';
 import { BlockItem } from './BlockItem';
-import { WaveformSVG } from './WaveformSVG';
+import { BlocksBaseline } from './BlocksBaseline';
 import { BlockEditModal } from '../modals/BlockEditModal';
 
 const RULER_HEIGHT = 24;
@@ -436,7 +436,7 @@ export const TimelineEditor = forwardRef(function TimelineEditor(props, ref) {
             </div>
           )}
 
-          <WaveformSVG vertical={vertical} blocks={blocks} pxPerSecond={pxPerSecond} width={contentWidth} height={TIMELINE_CANVAS_HEIGHT} />
+          <BlocksBaseline vertical={vertical} blocks={blocks} pxPerSecond={pxPerSecond} width={contentWidth} height={TIMELINE_CANVAS_HEIGHT} />
 
           <DndContext
             sensors={sensors}

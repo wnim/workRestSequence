@@ -13,7 +13,7 @@ function buildPath(blocks, pxPerSecond) {
   return d;
 }
 
-export function WaveformSVG({ blocks, pxPerSecond, width, height, vertical }) {
+export function BlocksBaseline({ blocks, pxPerSecond, width, height, vertical }) {
   if (vertical) return null;
   const path = buildPath(blocks, pxPerSecond);
   return (
@@ -26,7 +26,7 @@ export function WaveformSVG({ blocks, pxPerSecond, width, height, vertical }) {
         <path
           d={path}
           fill="none"
-          stroke="var(--color-waveform)"
+          stroke="var(--color-baseline)"
           strokeWidth={1}
           opacity={0.2}
         />
