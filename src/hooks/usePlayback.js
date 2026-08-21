@@ -13,6 +13,7 @@ export function usePlayback() {
   const setPlayStartWallTime = useStore((s) => s.setPlayStartWallTime);
   const setPausedDuration = useStore((s) => s.setPausedDuration);
   const setPausedAt = useStore((s) => s.setPausedAt);
+  const ttsEnabled = useStore((s) => s.ttsEnabled);
 
   const [currentPositionMs, setCurrentPositionMs] = useState(0);
   const rafRef = useRef(null);
@@ -22,6 +23,7 @@ export function usePlayback() {
   const clearCues = useCallback(() => {
     cueTimeoutsRef.current.forEach(clearTimeout);
     cueTimeoutsRef.current = [];
+    window.speechSynthesis?.cancel();
   }, []);
 
   const scheduleCues = useCallback((startWallTime, alreadyElapsedMs, pausedMs) => {
@@ -36,8 +38,10 @@ export function usePlayback() {
 
       const cueStartOffset = blockStart - alreadyElapsedMs;
       if (cueStartOffset >= 0) {
+        const label = b.label || (b.type === 'work' ? 'Work' : 'Rest');
         const id = setTimeout(() => {
           if (b.type === 'work') audio.playWorkStart(); else audio.playRestStart();
+          if (ttsEnabled) audio.speakLabel(label);
         }, cueStartOffset);
         cueTimeoutsRef.current.push(id);
       }
@@ -57,7 +61,7 @@ export function usePlayback() {
 
       cursor += b.duration;
     }
-  }, [blocks, audio, clearCues]);
+  }, [blocks, audio, clearCues, ttsEnabled]);
 
   const startRaf = useCallback((startWallTime, pausedMs) => {
     cancelAnimationFrame(rafRef.current);

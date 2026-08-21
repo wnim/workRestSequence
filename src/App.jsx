@@ -49,6 +49,9 @@ export default function App() {
   const [renameValue, setRenameValue] = useState('');
   const renameInputRef = useRef(null);
 
+  const ttsEnabled = useStore((s) => s.ttsEnabled);
+  const setTtsEnabled = useStore((s) => s.setTtsEnabled);
+
   const playback = usePlayback();
   const playState = useStore((s) => s.playState);
 
@@ -217,6 +220,14 @@ export default function App() {
           <Button title="Add rest block (R)" onClick={() => addBlock('rest')} style={{ background: 'oklch(0.32 0.06 250)', color: 'rgba(255,255,255,0.85)', border: '1px solid rgba(255,255,255,0.2)', fontSize: 12, height: 34, padding: '0 14px' }}>+ Rest</Button>
           <Button className="toolbar-desktop-only" title="Remove all blocks" onClick={() => setBlocks([])} style={{ fontSize: 12, height: 34, padding: '0 12px', background: 'transparent', color: 'rgba(255,255,255,0.5)', border: '1px solid rgba(255,255,255,0.18)' }}>Clear</Button>
           <div style={{ flex: 1 }} />
+          <Button
+            variant="outline"
+            title="Toggle voice readout of block labels"
+            onClick={() => setTtsEnabled(!ttsEnabled)}
+            style={{ fontSize: 12, height: 34, padding: '0 12px', background: ttsEnabled ? 'rgba(255,255,255,0.15)' : 'transparent', border: '1px solid rgba(255,255,255,0.18)', color: ttsEnabled ? 'rgba(255,255,255,0.9)' : 'rgba(255,255,255,0.45)' }}
+          >
+            Voice {ttsEnabled ? 'On' : 'Off'}
+          </Button>
           <Button
             title="Play workout (Space / K)"
             onClick={playback.play}

@@ -54,5 +54,16 @@ export function useAudio() {
     });
   }
 
-  return { playWorkStart, playRestStart, playTick, playCompletion };
+  function speakLabel(text) {
+    if (!window.speechSynthesis) return;
+    window.speechSynthesis.cancel();
+    const utt = new SpeechSynthesisUtterance(text);
+    window.speechSynthesis.speak(utt);
+  }
+
+  function cancelSpeech() {
+    if (window.speechSynthesis) window.speechSynthesis.cancel();
+  }
+
+  return { playWorkStart, playRestStart, playTick, playCompletion, speakLabel, cancelSpeech };
 }
