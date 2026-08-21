@@ -1,7 +1,7 @@
 import { useEffect, useRef, useCallback } from 'react';
 import useStore from '../store/workoutStore';
 import { fetchGistData, saveGistData, saveGistDataKeepalive } from '../utils/gist';
-import { LS_WORKOUTS, LS_SAVE_PENDING, GIST_FILENAME } from '../utils/constants';
+import { LS_WORKOUTS, GIST_FILENAME } from '../utils/constants';
 import { mergeWorkouts } from '../utils/merge';
 
 export function useGistSync() {
@@ -14,8 +14,6 @@ export function useGistSync() {
 
   const lastSyncedRef = useRef(null);
   const saveTimerRef = useRef(null);
-  const workoutsRef = useRef(workouts);
-  workoutsRef.current = workouts;
   const syncStatusRef = useRef(syncStatus);
   syncStatusRef.current = syncStatus;
 
@@ -24,32 +22,19 @@ export function useGistSync() {
     localStorage.setItem(LS_WORKOUTS, JSON.stringify(workouts));
   }, [workouts]);
 
-  // 2. Load from Gist on mount
-  useEffect(() => {
-    if (!gistConfig?.gistId || !gistConfig?.token) return;
-    const pending = localStorage.getItem(LS_SAVE_PENDING);
-    if (pending) {
-      localStorage.removeItem(LS_SAVE_PENDING);
-      return;
-    }
-    setSyncStatus('loading');
-    fetchGistData(gistConfig.gistId, gistConfig.token)
-      .then((data) => {
-        if (data?.workouts) {
-          setWorkouts(data.workouts);
-          lastSyncedRef.current = JSON.stringify(data.workouts);
-        }
-        setSyncStatus('idle');
-      })
-      .catch(() => setSyncStatus('error'));
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  // Raw save — no conflict check, used after conflict resolution
+  // Raw save — no conflict check, used after conflict resolution.
+  // After writing, reads back to confirm the data landed correctly.
   const doSaveInner = useCallback((serialized) => {
     setSyncStatus('saving');
     return saveGistData(gistConfig.gistId, gistConfig.token, GIST_FILENAME, { workouts: JSON.parse(serialized) })
-      .then(() => {
+      .then(() => fetchGistData(gistConfig.gistId, gistConfig.token))
+      .then((verified) => {
+        const verifiedStr = JSON.stringify(verified?.workouts ?? {});
+        if (verifiedStr !== serialized) {
+          console.error('[GistSync] Read-back mismatch after save — Gist may not have the latest data.');
+          setSyncStatus('error');
+          return;
+        }
         lastSyncedRef.current = serialized;
         setSyncStatus('saved');
         setTimeout(() => setSyncStatus('idle'), 2000);
@@ -80,7 +65,7 @@ export function useGistSync() {
       .catch(() => setSyncStatus('error'));
   }, [gistConfig, setSyncStatus, setConflictData]);
 
-  // 3. Mark dirty immediately on change; debounce the actual Gist save
+  // 2. Mark dirty immediately on change; debounce the actual Gist save
   useEffect(() => {
     if (!gistConfig?.gistId || !gistConfig?.token) return;
     if (lastSyncedRef.current === null) return;
@@ -92,7 +77,7 @@ export function useGistSync() {
     return () => clearTimeout(saveTimerRef.current);
   }, [workouts, gistConfig, setSyncStatus, doSave]);
 
-  // 4. Force pull from Gist, overwriting local state
+  // 3. Force pull from Gist, overwriting local state
   const pullNow = useCallback(() => {
     if (!gistConfig?.gistId || !gistConfig?.token) return Promise.resolve();
     setSyncStatus('loading');
@@ -107,11 +92,11 @@ export function useGistSync() {
       .catch(() => setSyncStatus('error'));
   }, [gistConfig, setSyncStatus, setWorkouts]);
 
-  // 5. Manual immediate save
+  // 4. Manual immediate save — reads fresh state from store to avoid stale closure data
   const saveNow = useCallback(() => {
     if (!gistConfig?.gistId || !gistConfig?.token) return;
     clearTimeout(saveTimerRef.current);
-    doSave(JSON.stringify(workoutsRef.current));
+    doSave(JSON.stringify(useStore.getState().workouts));
   }, [gistConfig, doSave]);
 
   // 5. Resolve a detected conflict
@@ -126,7 +111,7 @@ export function useGistSync() {
       setWorkouts(conflict.merged);
       doSaveInnerRef.current(JSON.stringify(conflict.merged));
     } else {
-      doSaveInnerRef.current(JSON.stringify(workoutsRef.current));
+      doSaveInnerRef.current(JSON.stringify(useStore.getState().workouts));
     }
   }, [setConflictData, setWorkouts, setSyncStatus]);
 
@@ -136,7 +121,6 @@ export function useGistSync() {
       if (!gistConfig?.gistId || !gistConfig?.token) return;
       const unsaved = syncStatusRef.current === 'dirty' || syncStatusRef.current === 'saving' || syncStatusRef.current === 'error';
       if (!unsaved) return;
-      localStorage.setItem(LS_SAVE_PENDING, '1');
       saveGistDataKeepalive(gistConfig.gistId, gistConfig.token, GIST_FILENAME, { workouts });
     }
     document.addEventListener('visibilitychange', () => {

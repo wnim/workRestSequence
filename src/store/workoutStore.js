@@ -150,8 +150,10 @@ const useStore = create((set, get) => ({
   }),
 
   saveWorkout: (name) => set((s) => {
+    const newWorkouts = { ...s.workouts, [name]: { name, blocks: s.blocks, resizeStep: s.resizeStep } };
     localStorage.setItem(LS_ACTIVE_WORKOUT, name);
-    return { workouts: { ...s.workouts, [name]: { name, blocks: s.blocks, resizeStep: s.resizeStep } }, activeWorkoutName: name };
+    localStorage.setItem(LS_WORKOUTS, JSON.stringify(newWorkouts));
+    return { workouts: newWorkouts, activeWorkoutName: name };
   }),
 
   createWorkout: (name) => set((s) => {
@@ -212,6 +214,9 @@ const useStore = create((set, get) => ({
     return { pxPerSecond: clamped };
   }),
   setResizeStep: (s) => set({ resizeStep: Math.max(0.1, Math.min(60, s)) }),
+
+  ttsEnabled: false,
+  setTtsEnabled: (v) => set({ ttsEnabled: v }),
 
   setPlayState: (playState) => set({ playState }),
   setPlayStartWallTime: (t) => set({ playStartWallTime: t }),
