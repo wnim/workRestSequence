@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect, forwardRef, useImperativeHandle } from 'react';
 import useStore from '../../store/workoutStore';
+import { blocksToTotalDuration, msToDisplay } from '../../utils/time';
 
 export const WorkoutPicker = forwardRef(function WorkoutPicker({ onLoad }, ref) {
   const workouts = useStore((s) => s.workouts);
@@ -180,6 +181,9 @@ export const WorkoutPicker = forwardRef(function WorkoutPicker({ onLoad }, ref) 
                   <span style={{ flex: 1, fontSize: 13, color: active ? 'oklch(0.75 0.15 200)' : 'white' }}>
                     {name}
                   </span>
+                  <span style={{ fontSize: 11, color: 'rgba(255,255,255,0.4)', fontFamily: 'monospace', flexShrink: 0 }}>
+                    {msToDisplay(blocksToTotalDuration(workouts[name]?.blocks ?? []) * 1000)}
+                  </span>
                   <button
                     onClick={(e) => handleDelete(e, name)}
                     title={armed ? 'Click again to confirm delete' : 'Delete'}
@@ -196,6 +200,15 @@ export const WorkoutPicker = forwardRef(function WorkoutPicker({ onLoad }, ref) 
               );
             })}
           </div>
+          {names.length > 0 && (() => {
+            const grandTotal = names.reduce((sum, n) => sum + blocksToTotalDuration(workouts[n]?.blocks ?? []), 0);
+            return (
+              <div style={{ borderTop: '1px solid rgba(255,255,255,0.08)', marginTop: 4, padding: '5px 8px', display: 'flex', justifyContent: 'space-between', pointerEvents: 'none' }}>
+                <span style={{ fontSize: 11, color: 'rgba(255,255,255,0.3)' }}>Total</span>
+                <span style={{ fontSize: 11, color: 'rgba(255,255,255,0.4)', fontFamily: 'monospace' }}>{msToDisplay(grandTotal * 1000)}</span>
+              </div>
+            );
+          })()}
         </div>
       )}
     </div>

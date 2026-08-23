@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import useStore from './store/workoutStore';
 import { useGistSync } from './hooks/useGistSync';
 import { usePlayback } from './hooks/usePlayback';
@@ -74,6 +74,13 @@ export default function App() {
 
   const savedBlocks = activeWorkoutName ? (workouts[activeWorkoutName]?.blocks ?? []) : [];
   const hasLocalChanges = JSON.stringify(blocks) !== JSON.stringify(savedBlocks);
+
+  useEffect(() => {
+    if (!hasLocalChanges) return;
+    function handleBeforeUnload(e) { e.preventDefault(); e.returnValue = ''; }
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+  }, [hasLocalChanges]);
 
   // For Gist status, only show it when Gist is configured and there's no local dirty state
   const gistStatus = !gistConfig?.gistId ? 'disconnected' : syncStatus;

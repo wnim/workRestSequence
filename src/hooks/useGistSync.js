@@ -16,6 +16,7 @@ export function useGistSync() {
   const saveTimerRef = useRef(null);
   const syncStatusRef = useRef(syncStatus);
   syncStatusRef.current = syncStatus;
+  const hasPulledOnMount = useRef(false);
 
   // 1. Mirror workouts to localStorage always
   useEffect(() => {
@@ -91,6 +92,14 @@ export function useGistSync() {
       })
       .catch(() => setSyncStatus('error'));
   }, [gistConfig, setSyncStatus, setWorkouts]);
+
+  // 3b. Pull on first mount (once gistConfig is available)
+  useEffect(() => {
+    if (hasPulledOnMount.current) return;
+    if (!gistConfig?.gistId || !gistConfig?.token) return;
+    hasPulledOnMount.current = true;
+    pullNow();
+  }, [gistConfig, pullNow]);
 
   // 4. Manual immediate save — reads fresh state from store to avoid stale closure data
   const saveNow = useCallback(() => {
