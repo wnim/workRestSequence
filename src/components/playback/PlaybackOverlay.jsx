@@ -13,6 +13,7 @@ export function PlaybackOverlay({ playback }) {
 
   const currentBlock = blocks[blockIndex];
   const nextBlock = blocks[blockIndex + 1] ?? null;
+  const nextNextBlock = blocks[blockIndex + 2] ?? null;
   const isWork = currentBlock?.type === 'work';
   const blockDurationMs = (currentBlock?.duration ?? 0) * 1000;
   const blockRemainingMs = blockDurationMs - blockElapsedMs;
@@ -49,7 +50,7 @@ export function PlaybackOverlay({ playback }) {
           {countdown}
         </div>
 
-        <div style={{ fontSize: '1.5rem', color: 'rgba(255,255,255,0.7)', marginTop: 8 }}>
+        <div style={{ fontSize: '2.2rem', color: 'rgba(255,255,255,0.7)', marginTop: 8 }}>
           {currentBlock?.label || (isWork ? 'Work' : 'Rest')}
         </div>
 
@@ -58,12 +59,23 @@ export function PlaybackOverlay({ playback }) {
         </div>
 
         {nextBlock && (
-          <div style={{ marginTop: 20, fontSize: '0.85rem', color: 'rgba(255,255,255,0.35)', display: 'flex', alignItems: 'center', gap: 6 }}>
-            <span>next</span>
-            <span style={{ color: 'rgba(255,255,255,0.55)', fontWeight: 500 }}>
-              {nextBlock.label || (nextBlock.type === 'work' ? 'Work' : 'Rest')}
-            </span>
-            <span>{msToDisplay(nextBlock.duration * 1000)}</span>
+          <div style={{ marginTop: 20, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4 }}>
+            <div style={{ fontSize: '1.1rem', color: 'rgba(255,255,255,0.35)', display: 'flex', alignItems: 'center', gap: 6 }}>
+              <span>next</span>
+              <span style={{ color: 'rgba(255,255,255,0.55)', fontWeight: 500 }}>
+                {nextBlock.label || (nextBlock.type === 'work' ? 'Work' : 'Rest')}
+              </span>
+              <span>{msToDisplay(nextBlock.duration * 1000)}</span>
+            </div>
+            {nextNextBlock && (
+              <div style={{ fontSize: '1rem', color: 'rgba(255,255,255,0.22)', display: 'flex', alignItems: 'center', gap: 6 }}>
+                <span>then</span>
+                <span style={{ color: 'rgba(255,255,255,0.35)', fontWeight: 500 }}>
+                  {nextNextBlock.label || (nextNextBlock.type === 'work' ? 'Work' : 'Rest')}
+                </span>
+                <span>{msToDisplay(nextNextBlock.duration * 1000)}</span>
+              </div>
+            )}
           </div>
         )}
 
