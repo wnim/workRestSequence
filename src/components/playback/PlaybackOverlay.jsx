@@ -7,6 +7,8 @@ export function PlaybackOverlay({ playback }) {
   const blocks = useStore((s) => s.blocks);
   const activeWorkoutName = useStore((s) => s.activeWorkoutName);
   const playState = useStore((s) => s.playState);
+  const ttsEnabled = useStore((s) => s.ttsEnabled);
+  const setTtsEnabled = useStore((s) => s.setTtsEnabled);
   const { currentPositionMs, blockIndex, blockElapsedMs, totalMs, togglePause, stop, seek, beginScrub, scrubTo, endScrub } = playback;
 
   if (playState === 'idle') return null;
@@ -107,6 +109,14 @@ export function PlaybackOverlay({ playback }) {
             style={{ background: 'rgba(255,255,255,0.1)', border: '1px solid rgba(255,255,255,0.3)', color: 'white' }}
           >
             Stop
+          </Button>
+          <Button
+            variant="outline"
+            title="Toggle voice readout of block labels"
+            onClick={() => setTtsEnabled(!ttsEnabled)}
+            style={{ background: ttsEnabled ? 'rgba(255,255,255,0.2)' : 'rgba(255,255,255,0.1)', border: '1px solid rgba(255,255,255,0.3)', color: ttsEnabled ? 'white' : 'rgba(255,255,255,0.5)' }}
+          >
+            Voice {ttsEnabled ? 'On' : 'Off'}
           </Button>
         </div>
       </div>
