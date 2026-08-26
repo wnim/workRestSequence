@@ -123,7 +123,9 @@ export function BlockItem({ block, index, blocks, pxPerSecond, vertical, vertBlo
   }
 
   const labelText = block.label || (isWork ? 'Work' : 'Rest');
-  const durationText = `${snappedDuration}s`;
+  const durationText = snappedDuration >= 60
+    ? `${Math.floor(snappedDuration / 60)}:${String(snappedDuration % 60).padStart(2, '0')}`
+    : `${snappedDuration}s`;
 
   // In vertical mode, always show text (height gives enough room).
   // In horizontal mode, hide text if the block is too narrow.

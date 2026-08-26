@@ -49,7 +49,7 @@ export function PlaybackOverlay({ playback }) {
         )}
 
         <div style={{ fontSize: '10rem', fontWeight: 700, lineHeight: 1, color: 'rgba(255,255,255,0.95)', letterSpacing: '-4px' }}>
-          {countdown}
+          {countdown >= 60 ? `${Math.floor(countdown / 60)}:${String(countdown % 60).padStart(2, '0')}` : countdown}
         </div>
 
         <div style={{ fontSize: '2.2rem', color: 'rgba(255,255,255,0.7)', marginTop: 8 }}>
