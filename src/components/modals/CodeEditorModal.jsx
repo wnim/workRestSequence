@@ -1,35 +1,58 @@
-import { useState, useRef } from 'react';
+import { useState } from 'react';
 import { v4 as uuid } from 'uuid';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '../ui/dialog';
 import { Button } from '../ui/button';
 import useStore from '../../store/workoutStore';
+import { loopsToSerialized, loopsToRuntime } from '../../utils/loops';
 
-function blocksToCode(blocks) {
-  const stripped = blocks.map(({ type, duration, label }) => ({
-    type,
-    duration,
-    ...(label ? { label } : {}),
+function workoutToCode(blocks, loops) {
+  const strippedBlocks = blocks.map(({ type, duration, label }) => ({
+    type, duration, ...(label ? { label } : {}),
   }));
-  return JSON.stringify(stripped, null, 2);
+  const serializedLoops = loopsToSerialized(blocks, loops);
+  const obj = serializedLoops.length > 0
+    ? { blocks: strippedBlocks, loops: serializedLoops }
+    : strippedBlocks;
+  return JSON.stringify(obj, null, 2);
 }
 
-function parseBlocks(text) {
+function parseWorkout(text) {
   const parsed = JSON.parse(text);
-  if (!Array.isArray(parsed)) throw new Error('Expected a JSON array');
-  return parsed.map((b) => {
-    if (b.type !== 'work' && b.type !== 'rest') throw new Error(`Invalid type "${b.type}" — must be "work" or "rest"`);
+  let rawBlocks, rawLoops;
+  if (Array.isArray(parsed)) {
+    rawBlocks = parsed;
+    rawLoops = [];
+  } else if (parsed && typeof parsed === 'object' && Array.isArray(parsed.blocks)) {
+    rawBlocks = parsed.blocks;
+    rawLoops = parsed.loops ?? [];
+  } else {
+    throw new Error('Expected an array of blocks, or an object with a "blocks" array');
+  }
+
+  const blocks = rawBlocks.map((b, i) => {
+    if (b.type !== 'work' && b.type !== 'rest') throw new Error(`Block ${i}: invalid type "${b.type}" — must be "work" or "rest"`);
     const duration = Number(b.duration);
-    if (!Number.isFinite(duration) || duration <= 0) throw new Error(`Invalid duration "${b.duration}"`);
+    if (!Number.isFinite(duration) || duration <= 0) throw new Error(`Block ${i}: invalid duration "${b.duration}"`);
     return { id: uuid(), type: b.type, duration, label: b.label ?? '' };
   });
+
+  const serializedLoops = (Array.isArray(rawLoops) ? rawLoops : []).map((l, i) => {
+    const si = Number(l.startIndex), ei = Number(l.endIndex), count = Number(l.count);
+    if (!Number.isInteger(si) || si < 0 || si >= blocks.length) throw new Error(`Loop ${i}: startIndex ${si} out of range`);
+    if (!Number.isInteger(ei) || ei < si || ei >= blocks.length) throw new Error(`Loop ${i}: endIndex ${ei} out of range`);
+    if (!Number.isInteger(count) || count < 2) throw new Error(`Loop ${i}: count must be an integer >= 2`);
+    return { startIndex: si, endIndex: ei, count };
+  });
+
+  return { blocks, loops: loopsToRuntime(blocks, serializedLoops) };
 }
 
 export function CodeEditorModal({ onClose }) {
   const blocks = useStore((s) => s.blocks);
   const loops = useStore((s) => s.loops);
-  const setBlocks = useStore((s) => s.setBlocks);
+  const setBlocksAndLoops = useStore((s) => s.setBlocksAndLoops);
 
-  const [code, setCode] = useState(() => blocksToCode(blocks));
+  const [code, setCode] = useState(() => workoutToCode(blocks, loops));
   const [error, setError] = useState(null);
   const [showSearch, setShowSearch] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
@@ -44,8 +67,8 @@ export function CodeEditorModal({ onClose }) {
 
   function handleApply() {
     try {
-      const next = parseBlocks(code);
-      setBlocks(next);
+      const { blocks: newBlocks, loops: newLoops } = parseWorkout(code);
+      setBlocksAndLoops(newBlocks, newLoops);
       setError(null);
       onClose();
     } catch (e) {
@@ -61,18 +84,10 @@ export function CodeEditorModal({ onClose }) {
         </DialogHeader>
 
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 8 }}>
-          <div>
-            <p style={{ fontSize: 12, color: 'rgba(255,255,255,0.4)', margin: 0 }}>
-              Array of blocks — each needs <code style={{ color: 'rgba(255,255,255,0.6)' }}>type</code> ("work" or "rest"),{' '}
-              <code style={{ color: 'rgba(255,255,255,0.6)' }}>duration</code> (seconds), optional{' '}
-              <code style={{ color: 'rgba(255,255,255,0.6)' }}>label</code>.
-            </p>
-            {loops.length > 0 && (
-              <p style={{ fontSize: 12, color: 'oklch(0.75 0.15 60)', margin: '6px 0 0' }}>
-                ⚠ This workout has {loops.length} loop{loops.length > 1 ? 's' : ''}. Applying new JSON will remove them.
-              </p>
-            )}
-          </div>
+          <p style={{ fontSize: 12, color: 'rgba(255,255,255,0.4)', margin: 0 }}>
+            Blocks array, or <code style={{ color: 'rgba(255,255,255,0.6)' }}>{'{blocks, loops}'}</code> object.
+            Loops use <code style={{ color: 'rgba(255,255,255,0.6)' }}>startIndex</code>, <code style={{ color: 'rgba(255,255,255,0.6)' }}>endIndex</code>, <code style={{ color: 'rgba(255,255,255,0.6)' }}>count</code>.
+          </p>
           <button
             onClick={() => setShowSearch((v) => !v)}
             style={{ background: 'rgba(255,255,255,0.07)', border: '1px solid rgba(255,255,255,0.15)', borderRadius: 4, color: 'rgba(255,255,255,0.5)', fontSize: 12, cursor: 'pointer', padding: '3px 8px', flexShrink: 0, whiteSpace: 'nowrap' }}

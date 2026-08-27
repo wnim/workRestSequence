@@ -233,6 +233,8 @@ const useStore = create((set, get) => ({
 
   setBlocks: (blocks) => set((s) => { pushSnapshot({ blocks: s.blocks, loops: s.loops }); return { blocks, loops: [] }; }),
 
+  setBlocksAndLoops: (blocks, loops) => set((s) => { pushSnapshot({ blocks: s.blocks, loops: s.loops }); return { blocks, loops }; }),
+
   reorderBlocksFull: (blocks) => set((s) => {
     pushSnapshot({ blocks: s.blocks, loops: s.loops });
     return { blocks, loops: revalidateLoops(blocks, s.loops) };
