@@ -1,5 +1,6 @@
 import { useEffect } from 'react';
 import useStore from '../store/workoutStore';
+import { validateNewLoop } from '../utils/loops';
 
 function key(e, letter, code) {
   return /^[a-z]$/i.test(e.key) ? e.key.toLowerCase() === letter : e.code === code;
@@ -8,7 +9,10 @@ function key(e, letter, code) {
 export function useKeyboard({ onPlay, onPause, onStop, onRestart, onHelp, onSave, onSeekBy, onOpenPicker, onZoomToSelection, onZoomIn, onZoomOut, onFitToScreen } = {}) {
   const removeBlocks = useStore((s) => s.removeBlocks);
   const addBlock = useStore((s) => s.addBlock);
+  const blocks = useStore((s) => s.blocks);
   const selectedIds = useStore((s) => s.selectedIds);
+  const loops = useStore((s) => s.loops);
+  const createLoop = useStore((s) => s.createLoop);
   const copySelection = useStore((s) => s.copySelection);
   const pasteBlocks = useStore((s) => s.pasteBlocks);
   const selectAll = useStore((s) => s.selectAll);
@@ -52,6 +56,9 @@ export function useKeyboard({ onPlay, onPause, onStop, onRestart, onHelp, onSave
         e.preventDefault(); onZoomIn?.();
       } else if ((e.ctrlKey || e.metaKey) && e.key === '-') {
         e.preventDefault(); onZoomOut?.();
+      } else if ((e.ctrlKey || e.metaKey) && key(e, 'l', 'KeyL')) {
+        e.preventDefault();
+        if (validateNewLoop(blocks, loops, selectedIds).ok) createLoop(selectedIds);
       } else if ((e.ctrlKey || e.metaKey) && key(e, 'a', 'KeyA')) {
         e.preventDefault(); selectAll();
       } else if ((e.ctrlKey || e.metaKey) && e.key === '0') {
@@ -73,5 +80,5 @@ export function useKeyboard({ onPlay, onPause, onStop, onRestart, onHelp, onSave
 
     window.addEventListener('keydown', handler);
     return () => window.removeEventListener('keydown', handler);
-  }, [selectedIds, playState, addBlock, removeBlocks, copySelection, pasteBlocks, selectAll, undo, redo, onPlay, onPause, onStop, onRestart, onHelp, onSave, onSeekBy, onOpenPicker, onZoomToSelection, onZoomIn, onZoomOut, onFitToScreen]);
+  }, [blocks, selectedIds, loops, createLoop, playState, addBlock, removeBlocks, copySelection, pasteBlocks, selectAll, undo, redo, onPlay, onPause, onStop, onRestart, onHelp, onSave, onSeekBy, onOpenPicker, onZoomToSelection, onZoomIn, onZoomOut, onFitToScreen]);
 }

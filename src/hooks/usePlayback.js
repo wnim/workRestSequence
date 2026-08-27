@@ -1,10 +1,13 @@
-import { useRef, useState, useCallback, useEffect } from 'react';
+import { useRef, useState, useCallback, useEffect, useMemo } from 'react';
 import useStore from '../store/workoutStore';
 import { blockStartTime } from '../utils/time';
 import { useAudio } from './useAudio';
+import { flattenBlocks } from '../utils/loops';
 
 export function usePlayback() {
-  const blocks = useStore((s) => s.blocks);
+  const rawBlocks = useStore((s) => s.blocks);
+  const loops = useStore((s) => s.loops);
+  const blocks = useMemo(() => flattenBlocks(rawBlocks, loops), [rawBlocks, loops]);
   const playState = useStore((s) => s.playState);
   const playStartWallTime = useStore((s) => s.playStartWallTime);
   const pausedDuration = useStore((s) => s.pausedDuration);

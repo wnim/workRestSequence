@@ -2,6 +2,7 @@
 export const TIMELINE_CANVAS_HEIGHT = 280;
 export const BLOCK_HEIGHT = 50;
 export const BLOCK_TOP = Math.round((TIMELINE_CANVAS_HEIGHT - BLOCK_HEIGHT) / 2);
+export const LOOP_BRACKET_HEIGHT = 24;
 
 export const VERTICAL_RULER_WIDTH = 36;
 

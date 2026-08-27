@@ -11,10 +11,12 @@ import {
 import { SortableContext, horizontalListSortingStrategy, verticalListSortingStrategy } from '@dnd-kit/sortable';
 import useStore from '../../store/workoutStore';
 import { blockStartTime, blocksToTotalDuration, getBlockBounds } from '../../utils/time';
-import { TIMELINE_CANVAS_HEIGHT, BLOCK_TOP, BLOCK_HEIGHT, MULTI_DRAG_SCALE, VERTICAL_RULER_WIDTH } from '../../utils/constants';
+import { TIMELINE_CANVAS_HEIGHT, BLOCK_TOP, MULTI_DRAG_SCALE, VERTICAL_RULER_WIDTH } from '../../utils/constants';
+import { validateNewLoop } from '../../utils/loops';
 import { BlockItem } from './BlockItem';
 import { BlocksBaseline } from './BlocksBaseline';
 import { BlockEditModal } from '../modals/BlockEditModal';
+import { LoopBracket } from './LoopBracket';
 
 const RULER_HEIGHT = 24;
 
@@ -76,7 +78,11 @@ export const TimelineEditor = forwardRef(function TimelineEditor(props, ref) {
   const selectedIds = useStore((s) => s.selectedIds);
   const setSelectedIds = useStore((s) => s.setSelectedIds);
   const reorderBlocks = useStore((s) => s.reorderBlocks);
-  const setBlocks = useStore((s) => s.setBlocks);
+  const reorderBlocksFull = useStore((s) => s.reorderBlocksFull);
+  const loops = useStore((s) => s.loops);
+  const createLoop = useStore((s) => s.createLoop);
+  const updateLoopCount = useStore((s) => s.updateLoopCount);
+  const deleteLoop = useStore((s) => s.deleteLoop);
 
   const isMobile = useIsMobile();
   const [verticalToggle, setVerticalToggle] = useState(false);
@@ -268,7 +274,7 @@ export const TimelineEditor = forwardRef(function TimelineEditor(props, ref) {
 
       const result = [...rest];
       result.splice(insertAt, 0, ...selected);
-      setBlocks(result);
+      reorderBlocksFull(result);
     } else {
       const oldIndex = blocks.findIndex((b) => b.id === active.id);
       const newIndex = blocks.findIndex((b) => b.id === over.id);
@@ -338,6 +344,12 @@ export const TimelineEditor = forwardRef(function TimelineEditor(props, ref) {
     display: 'flex', alignItems: 'center', justifyContent: 'center', fontFamily: 'monospace',
   });
 
+  const loopButtonEnabled = validateNewLoop(blocks, loops, selectedIds).ok;
+
+  const loopSelectedBlockIds = new Set(
+    loops.filter(loop => loop.blockIds.every(id => selectedIds.has(id))).flatMap(l => l.blockIds)
+  );
+
   const toolbarButtons = <>
     <button style={selModeBtnStyle('all')} title="Select any block" onClick={() => setSelectionMode('all')}>
       <TbMarquee size={16} color={selectionMode === 'all' ? 'rgba(255,255,255,0.85)' : 'rgba(255,255,255,0.28)'} />
@@ -347,6 +359,21 @@ export const TimelineEditor = forwardRef(function TimelineEditor(props, ref) {
     </button>
     <button style={selModeBtnStyle('rest')} title="Select only rest blocks" onClick={() => setSelectionMode('rest')}>
       <TbMarquee2 size={16} color={selectionMode === 'rest' ? 'rgba(130,165,220,0.9)' : 'rgba(130,165,220,0.3)'} />
+    </button>
+    <button
+      style={{
+        background: 'none', border: 'none', borderRadius: 3,
+        cursor: loopButtonEnabled ? 'pointer' : 'default',
+        height: 22, padding: '0 3px',
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+        fontSize: 11, fontFamily: 'monospace', fontWeight: 600,
+        color: loopButtonEnabled ? 'oklch(0.78 0.14 200)' : 'rgba(255,255,255,0.18)',
+      }}
+      title={loopButtonEnabled ? 'Loop selection (Ctrl+L)' : 'Select contiguous blocks to create a loop'}
+      disabled={!loopButtonEnabled}
+      onClick={() => { if (loopButtonEnabled) createLoop(selectedIds); }}
+    >
+      ↺
     </button>
     <div style={{ height: 1, width: '100%', background: 'rgba(255,255,255,0.1)', margin: '2px 0' }} />
     <button style={zoomBtnStyle(false)} title="Zoom in (Ctrl++)" onClick={() => zoomBy(1.4)}>+</button>
@@ -458,6 +485,7 @@ export const TimelineEditor = forwardRef(function TimelineEditor(props, ref) {
                   pxPerSecond={pxPerSecond}
                   vertical={vertical}
                   vertBlockWidth={vertBlockWidth}
+                  inLoopSelection={loopSelectedBlockIds.has(b.id)}
                   onDoubleClick={(clicked) => {
                     if (selectedIds.has(clicked.id) && selectedIds.size > 1) {
                       setEditingBlocks(blocks.filter((b) => selectedIds.has(b.id)));
@@ -473,6 +501,19 @@ export const TimelineEditor = forwardRef(function TimelineEditor(props, ref) {
               ))}
             </SortableContext>
           </DndContext>
+
+          {!vertical && loops.map(loop => (
+            <LoopBracket
+              key={loop.id}
+              loop={loop}
+              blocks={blocks}
+              pxPerSecond={pxPerSecond}
+              onUpdateCount={(count) => updateLoopCount(loop.id, count)}
+              onDelete={() => deleteLoop(loop.id)}
+              onSelect={() => setSelectedIds(new Set(loop.blockIds))}
+              isSelected={loop.blockIds.every(id => selectedIds.has(id))}
+            />
+          ))}
 
           {rubberBand && (
             <div style={{

@@ -10,7 +10,7 @@ function snapTo(value, step) {
   return Math.round(value / step) * step;
 }
 
-export function BlockItem({ block, index, blocks, pxPerSecond, vertical, vertBlockWidth, onDoubleClick, dragActiveId, dragDeltaX, dragDeltaY, suppressTransition }) {
+export function BlockItem({ block, index, blocks, pxPerSecond, vertical, vertBlockWidth, onDoubleClick, dragActiveId, dragDeltaX, dragDeltaY, suppressTransition, inLoopSelection }) {
   const selectedIds = useStore((s) => s.selectedIds);
   const setSelectedIds = useStore((s) => s.setSelectedIds);
   const toggleSelected = useStore((s) => s.toggleSelected);
@@ -91,7 +91,7 @@ export function BlockItem({ block, index, blocks, pxPerSecond, vertical, vertBlo
     borderRadius: 4,
     boxSizing: 'border-box',
     background: isWork ? 'oklch(0.65 0.22 35 / 0.7)' : 'oklch(0.35 0.05 250 / 0.7)',
-    border: isSelected ? '2px solid oklch(0.75 0.15 200)' : '1px solid rgba(255,255,255,0.15)',
+    border: inLoopSelection ? '1px solid rgba(255,255,255,0.08)' : isSelected ? '2px solid oklch(0.75 0.15 200)' : '1px solid rgba(255,255,255,0.15)',
     opacity: (isDragging || isCompanion) ? 0.5 : 1,
     display: 'flex',
     flexDirection: vertical ? 'row' : 'column',

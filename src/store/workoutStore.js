@@ -2,6 +2,7 @@ import { create } from 'zustand';
 import { v4 as uuid } from 'uuid';
 import { arrayMove } from '@dnd-kit/sortable';
 import { LS_PX_PER_SECOND, LS_GIST_CONFIG, LS_WORKOUTS, LS_ACTIVE_WORKOUT } from '../utils/constants';
+import { loopsToRuntime, loopsToSerialized, revalidateLoops, validateNewLoop } from '../utils/loops';
 
 function loadPxPerSecond() {
   try { return JSON.parse(localStorage.getItem(LS_PX_PER_SECOND)) ?? 20; }
@@ -18,12 +19,14 @@ function loadWorkoutsFromLS() {
 function loadActiveWorkout() {
   try {
     const name = localStorage.getItem(LS_ACTIVE_WORKOUT);
-    if (!name) return { activeWorkoutName: null, blocks: [], resizeStep: 1 };
+    if (!name) return { activeWorkoutName: null, blocks: [], loops: [], resizeStep: 1 };
     const workouts = loadWorkoutsFromLS();
     const workout = workouts[name];
-    if (!workout) return { activeWorkoutName: null, blocks: [], resizeStep: 1 };
-    return { activeWorkoutName: name, blocks: workout.blocks, resizeStep: workout.resizeStep ?? 1 };
-  } catch { return { activeWorkoutName: null, blocks: [], resizeStep: 1 }; }
+    if (!workout) return { activeWorkoutName: null, blocks: [], loops: [], resizeStep: 1 };
+    const blocks = workout.blocks.map(b => ({ ...b, id: uuid() }));
+    const loops = loopsToRuntime(blocks, workout.loops ?? []);
+    return { activeWorkoutName: name, blocks, loops, resizeStep: workout.resizeStep ?? 1 };
+  } catch { return { activeWorkoutName: null, blocks: [], loops: [], resizeStep: 1 }; }
 }
 
 function loadGistConfigFromLS() {
@@ -37,17 +40,18 @@ function loadGistConfigFromLS() {
 let past = [];
 let future = [];
 
-function pushPast(blocks) {
-  past = [...past, blocks].slice(-50);
+function pushSnapshot({ blocks, loops }) {
+  past = [...past, { blocks, loops }].slice(-50);
   future = [];
 }
 
 const useStore = create((set, get) => ({
   workouts: loadWorkoutsFromLS(),
-  ...loadActiveWorkout(),
   selectedIds: new Set(),
   clipboardBlocks: [],
+  clipboardLoops: [],
   pxPerSecond: loadPxPerSecond(),
+  ...loadActiveWorkout(),
   gistConfig: loadGistConfigFromLS(),
   syncStatus: 'idle',
   conflictData: null,
@@ -57,27 +61,30 @@ const useStore = create((set, get) => ({
   pausedAt: null,
 
   addBlock: (type) => set((s) => {
-    pushPast(s.blocks);
+    pushSnapshot({ blocks: s.blocks, loops: s.loops });
     const newBlock = { id: uuid(), type, duration: 10, label: '' };
     return { blocks: [...s.blocks, newBlock] };
   }),
 
   removeBlocks: (ids) => set((s) => {
     const idSet = ids instanceof Set ? ids : new Set(ids);
-    pushPast(s.blocks);
+    pushSnapshot({ blocks: s.blocks, loops: s.loops });
+    const blocks = s.blocks.filter((b) => !idSet.has(b.id));
     return {
-      blocks: s.blocks.filter((b) => !idSet.has(b.id)),
+      blocks,
+      loops: revalidateLoops(blocks, s.loops),
       selectedIds: new Set(),
     };
   }),
 
   reorderBlocks: (fromIndex, toIndex) => set((s) => {
-    pushPast(s.blocks);
-    return { blocks: arrayMove(s.blocks, fromIndex, toIndex) };
+    pushSnapshot({ blocks: s.blocks, loops: s.loops });
+    const blocks = arrayMove(s.blocks, fromIndex, toIndex);
+    return { blocks, loops: revalidateLoops(blocks, s.loops) };
   }),
 
   resizeBlock: (id, deltaSeconds) => set((s) => {
-    pushPast(s.blocks);
+    pushSnapshot({ blocks: s.blocks, loops: s.loops });
     return {
       blocks: s.blocks.map((b) =>
         b.id === id ? { ...b, duration: Math.max(0.1, Math.min(3600, b.duration + deltaSeconds)) } : b
@@ -86,12 +93,12 @@ const useStore = create((set, get) => ({
   }),
 
   updateBlock: (id, patch) => set((s) => {
-    pushPast(s.blocks);
+    pushSnapshot({ blocks: s.blocks, loops: s.loops });
     return { blocks: s.blocks.map((b) => (b.id === id ? { ...b, ...patch } : b)) };
   }),
 
   updateBlocks: (ids, patch) => set((s) => {
-    pushPast(s.blocks);
+    pushSnapshot({ blocks: s.blocks, loops: s.loops });
     return { blocks: s.blocks.map((b) => (ids.has(b.id) ? { ...b, ...patch } : b)) };
   }),
 
@@ -115,42 +122,55 @@ const useStore = create((set, get) => ({
     return { selectedIds: new Set(blocks.slice(minIdx, maxIdx + 1).map((b) => b.id)) };
   }),
 
-  copySelection: () => set((s) => ({
-    clipboardBlocks: s.blocks
+  copySelection: () => set((s) => {
+    const origToClip = new Map();
+    const clipboardBlocks = s.blocks
       .filter((b) => s.selectedIds.has(b.id))
-      .map((b) => ({ ...b, id: uuid() })),
-  })),
+      .map((b) => { const newId = uuid(); origToClip.set(b.id, newId); return { ...b, id: newId }; });
+    const clipboardLoops = s.loops
+      .filter(loop => loop.blockIds.every(id => s.selectedIds.has(id)))
+      .map(loop => ({ count: loop.count, clipboardBlockIds: loop.blockIds.map(id => origToClip.get(id)) }));
+    return { clipboardBlocks, clipboardLoops };
+  }),
 
   pasteBlocks: () => set((s) => {
     if (s.clipboardBlocks.length === 0) return {};
     const newBlocks = s.clipboardBlocks.map((b) => ({ ...b, id: uuid() }));
+    const clipIdToNew = new Map(s.clipboardBlocks.map((cb, i) => [cb.id, newBlocks[i].id]));
     const selected = s.blocks.map((b, i) => (s.selectedIds.has(b.id) ? i : -1)).filter((i) => i >= 0);
     const insertAfter = selected.length > 0 ? Math.max(...selected) : s.blocks.length - 1;
     const result = [...s.blocks];
     result.splice(insertAfter + 1, 0, ...newBlocks);
-    pushPast(s.blocks);
-    return { blocks: result, selectedIds: new Set(newBlocks.map((b) => b.id)) };
+    const pastedLoops = (s.clipboardLoops ?? []).map(cl => {
+      const newIds = cl.clipboardBlockIds.map(cid => clipIdToNew.get(cid)).filter(Boolean);
+      if (newIds.length !== cl.clipboardBlockIds.length) return null;
+      return { id: uuid(), startBlockId: newIds[0], endBlockId: newIds[newIds.length - 1], blockIds: newIds, count: cl.count };
+    }).filter(Boolean);
+    pushSnapshot({ blocks: s.blocks, loops: s.loops });
+    return { blocks: result, loops: revalidateLoops(result, [...s.loops, ...pastedLoops]), selectedIds: new Set(newBlocks.map((b) => b.id)) };
   }),
 
   undo: () => set((s) => {
     if (past.length === 0) return {};
     const next = [...past];
-    const blocks = next.pop();
-    future = [s.blocks, ...future].slice(0, 50);
+    const snapshot = next.pop();
+    future = [{ blocks: s.blocks, loops: s.loops }, ...future].slice(0, 50);
     past = next;
-    return { blocks };
+    return { blocks: snapshot.blocks, loops: snapshot.loops };
   }),
 
   redo: () => set((s) => {
     if (future.length === 0) return {};
-    const [blocks, ...rest] = future;
-    past = [...past, s.blocks].slice(-50);
+    const [snapshot, ...rest] = future;
+    past = [...past, { blocks: s.blocks, loops: s.loops }].slice(-50);
     future = rest;
-    return { blocks };
+    return { blocks: snapshot.blocks, loops: snapshot.loops };
   }),
 
   saveWorkout: (name) => set((s) => {
-    const newWorkouts = { ...s.workouts, [name]: { name, blocks: s.blocks, resizeStep: s.resizeStep } };
+    const serializedLoops = loopsToSerialized(s.blocks, s.loops);
+    const workout = { name, blocks: s.blocks, loops: serializedLoops, resizeStep: s.resizeStep };
+    const newWorkouts = { ...s.workouts, [name]: workout };
     localStorage.setItem(LS_ACTIVE_WORKOUT, name);
     localStorage.setItem(LS_WORKOUTS, JSON.stringify(newWorkouts));
     return { workouts: newWorkouts, activeWorkoutName: name };
@@ -160,7 +180,7 @@ const useStore = create((set, get) => ({
     localStorage.setItem(LS_ACTIVE_WORKOUT, name);
     past = [];
     future = [];
-    return { workouts: { ...s.workouts, [name]: { name, blocks: [], resizeStep: s.resizeStep } }, activeWorkoutName: name, blocks: [], selectedIds: new Set() };
+    return { workouts: { ...s.workouts, [name]: { name, blocks: [], loops: [], resizeStep: s.resizeStep } }, activeWorkoutName: name, blocks: [], loops: [], selectedIds: new Set() };
   }),
 
   loadWorkout: (name) => set((s) => {
@@ -169,7 +189,9 @@ const useStore = create((set, get) => ({
     localStorage.setItem(LS_ACTIVE_WORKOUT, name);
     past = [];
     future = [];
-    return { blocks: workout.blocks, resizeStep: workout.resizeStep ?? 1, activeWorkoutName: name, selectedIds: new Set() };
+    const blocks = workout.blocks.map(b => ({ ...b, id: uuid() }));
+    const loops = loopsToRuntime(blocks, workout.loops ?? []);
+    return { blocks, loops, resizeStep: workout.resizeStep ?? 1, activeWorkoutName: name, selectedIds: new Set() };
   }),
 
   deleteWorkout: (name) => set((s) => {
@@ -193,9 +215,12 @@ const useStore = create((set, get) => ({
 
   setWorkouts: (map) => set((s) => {
     if (s.activeWorkoutName && map[s.activeWorkoutName]) {
+      const workout = map[s.activeWorkoutName];
       past = [];
       future = [];
-      return { workouts: map, blocks: map[s.activeWorkoutName].blocks };
+      const blocks = workout.blocks.map(b => ({ ...b, id: uuid() }));
+      const loops = loopsToRuntime(blocks, workout.loops ?? []);
+      return { workouts: map, blocks, loops };
     }
     return { workouts: map };
   }),
@@ -206,7 +231,12 @@ const useStore = create((set, get) => ({
 
   setConflictData: (data) => set({ conflictData: data }),
 
-  setBlocks: (blocks) => set((s) => { pushPast(s.blocks); return { blocks }; }),
+  setBlocks: (blocks) => set((s) => { pushSnapshot({ blocks: s.blocks, loops: s.loops }); return { blocks, loops: [] }; }),
+
+  reorderBlocksFull: (blocks) => set((s) => {
+    pushSnapshot({ blocks: s.blocks, loops: s.loops });
+    return { blocks, loops: revalidateLoops(blocks, s.loops) };
+  }),
 
   setPxPerSecond: (px) => set(() => {
     const clamped = Math.max(2, Math.min(100, px));
@@ -222,6 +252,31 @@ const useStore = create((set, get) => ({
   setPlayStartWallTime: (t) => set({ playStartWallTime: t }),
   setPausedDuration: (d) => set({ pausedDuration: d }),
   setPausedAt: (t) => set({ pausedAt: t }),
+
+  createLoop: (selectedIds) => set((s) => {
+    const validation = validateNewLoop(s.blocks, s.loops, selectedIds);
+    if (!validation.ok) return {};
+    const indices = s.blocks
+      .map((b, i) => (selectedIds.has(b.id) ? i : -1))
+      .filter(i => i >= 0);
+    pushSnapshot({ blocks: s.blocks, loops: s.loops });
+    const newLoop = {
+      id: uuid(),
+      startBlockId: s.blocks[indices[0]].id,
+      endBlockId: s.blocks[indices[indices.length - 1]].id,
+      blockIds: indices.map(i => s.blocks[i].id),
+      count: 2,
+    };
+    return { loops: [...s.loops, newLoop] };
+  }),
+
+  updateLoopCount: (loopId, count) => set((s) => ({
+    loops: s.loops.map(l => l.id === loopId ? { ...l, count: Math.max(2, Math.round(count)) } : l),
+  })),
+
+  deleteLoop: (loopId) => set((s) => ({
+    loops: s.loops.filter(l => l.id !== loopId),
+  })),
 
   // For testing: inspect and reset history without storing it in reactive state.
   getHistory: () => ({ past, future }),

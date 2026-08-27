@@ -1,10 +1,14 @@
+import { useMemo } from 'react';
 import { msToStopwatch, msToDisplay } from '../../utils/time';
 import useStore from '../../store/workoutStore';
+import { flattenBlocks } from '../../utils/loops';
 import { BlocksBar } from './BlocksBar';
 import { Button } from '../ui/button';
 
 export function PlaybackOverlay({ playback }) {
-  const blocks = useStore((s) => s.blocks);
+  const rawBlocks = useStore((s) => s.blocks);
+  const loops = useStore((s) => s.loops);
+  const blocks = useMemo(() => flattenBlocks(rawBlocks, loops), [rawBlocks, loops]);
   const activeWorkoutName = useStore((s) => s.activeWorkoutName);
   const playState = useStore((s) => s.playState);
   const ttsEnabled = useStore((s) => s.ttsEnabled);

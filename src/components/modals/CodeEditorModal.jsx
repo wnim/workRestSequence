@@ -26,6 +26,7 @@ function parseBlocks(text) {
 
 export function CodeEditorModal({ onClose }) {
   const blocks = useStore((s) => s.blocks);
+  const loops = useStore((s) => s.loops);
   const setBlocks = useStore((s) => s.setBlocks);
 
   const [code, setCode] = useState(() => blocksToCode(blocks));
@@ -60,11 +61,18 @@ export function CodeEditorModal({ onClose }) {
         </DialogHeader>
 
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 8 }}>
-          <p style={{ fontSize: 12, color: 'rgba(255,255,255,0.4)', margin: 0 }}>
-            Array of blocks — each needs <code style={{ color: 'rgba(255,255,255,0.6)' }}>type</code> ("work" or "rest"),{' '}
-            <code style={{ color: 'rgba(255,255,255,0.6)' }}>duration</code> (seconds), optional{' '}
-            <code style={{ color: 'rgba(255,255,255,0.6)' }}>label</code>.
-          </p>
+          <div>
+            <p style={{ fontSize: 12, color: 'rgba(255,255,255,0.4)', margin: 0 }}>
+              Array of blocks — each needs <code style={{ color: 'rgba(255,255,255,0.6)' }}>type</code> ("work" or "rest"),{' '}
+              <code style={{ color: 'rgba(255,255,255,0.6)' }}>duration</code> (seconds), optional{' '}
+              <code style={{ color: 'rgba(255,255,255,0.6)' }}>label</code>.
+            </p>
+            {loops.length > 0 && (
+              <p style={{ fontSize: 12, color: 'oklch(0.75 0.15 60)', margin: '6px 0 0' }}>
+                ⚠ This workout has {loops.length} loop{loops.length > 1 ? 's' : ''}. Applying new JSON will remove them.
+              </p>
+            )}
+          </div>
           <button
             onClick={() => setShowSearch((v) => !v)}
             style={{ background: 'rgba(255,255,255,0.07)', border: '1px solid rgba(255,255,255,0.15)', borderRadius: 4, color: 'rgba(255,255,255,0.5)', fontSize: 12, cursor: 'pointer', padding: '3px 8px', flexShrink: 0, whiteSpace: 'nowrap' }}
