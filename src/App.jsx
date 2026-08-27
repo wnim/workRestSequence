@@ -73,7 +73,8 @@ export default function App() {
   const totalSec = blocksToTotalDuration(blocks);
 
   const savedBlocks = activeWorkoutName ? (workouts[activeWorkoutName]?.blocks ?? []) : [];
-  const hasLocalChanges = JSON.stringify(blocks) !== JSON.stringify(savedBlocks);
+  const stripId = ({ id: _id, ...rest }) => rest;
+  const hasLocalChanges = JSON.stringify(blocks.map(stripId)) !== JSON.stringify(savedBlocks.map(stripId));
 
   useEffect(() => {
     if (!hasLocalChanges) return;
