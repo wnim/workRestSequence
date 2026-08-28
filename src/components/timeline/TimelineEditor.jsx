@@ -502,12 +502,14 @@ export const TimelineEditor = forwardRef(function TimelineEditor(props, ref) {
             </SortableContext>
           </DndContext>
 
-          {!vertical && loops.map(loop => (
+          {loops.map(loop => (
             <LoopBracket
               key={loop.id}
               loop={loop}
               blocks={blocks}
               pxPerSecond={pxPerSecond}
+              vertical={vertical}
+              vertBlockWidth={vertBlockWidth}
               onUpdateCount={(count) => updateLoopCount(loop.id, count)}
               onDelete={() => deleteLoop(loop.id)}
               onSelect={() => setSelectedIds(new Set(loop.blockIds))}
