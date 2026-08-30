@@ -1,6 +1,17 @@
 import { useState, useRef, useEffect, forwardRef, useImperativeHandle } from 'react';
 import useStore from '../../store/workoutStore';
-import { blocksToTotalDuration, msToDisplay } from '../../utils/time';
+import { msToDisplay } from '../../utils/time';
+
+function workoutTotalSec(workout) {
+  const blocks = workout?.blocks ?? [];
+  const loops = workout?.loops ?? [];
+  const base = blocks.reduce((sum, b) => sum + b.duration, 0);
+  const extra = loops.reduce((sum, l) => {
+    const sliceDur = blocks.slice(l.startIndex, l.endIndex + 1).reduce((s, b) => s + b.duration, 0);
+    return sum + (l.count - 1) * sliceDur;
+  }, 0);
+  return base + extra;
+}
 
 export const WorkoutPicker = forwardRef(function WorkoutPicker({ onLoad }, ref) {
   const workouts = useStore((s) => s.workouts);
@@ -182,7 +193,7 @@ export const WorkoutPicker = forwardRef(function WorkoutPicker({ onLoad }, ref) 
                     {name}
                   </span>
                   <span style={{ fontSize: 11, color: 'rgba(255,255,255,0.4)', fontFamily: 'monospace', flexShrink: 0 }}>
-                    {msToDisplay(blocksToTotalDuration(workouts[name]?.blocks ?? []) * 1000)}
+                    {msToDisplay(workoutTotalSec(workouts[name]) * 1000)}
                   </span>
                   <button
                     onClick={(e) => handleDelete(e, name)}
@@ -201,7 +212,7 @@ export const WorkoutPicker = forwardRef(function WorkoutPicker({ onLoad }, ref) 
             })}
           </div>
           {names.length > 0 && (() => {
-            const grandTotal = names.reduce((sum, n) => sum + blocksToTotalDuration(workouts[n]?.blocks ?? []), 0);
+            const grandTotal = names.reduce((sum, n) => sum + workoutTotalSec(workouts[n]), 0);
             return (
               <div style={{ borderTop: '1px solid rgba(255,255,255,0.08)', marginTop: 4, padding: '5px 8px', display: 'flex', justifyContent: 'space-between', pointerEvents: 'none' }}>
                 <span style={{ fontSize: 11, color: 'rgba(255,255,255,0.3)' }}>Total</span>

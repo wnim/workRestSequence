@@ -13,6 +13,7 @@ import { Button } from './components/ui/button';
 import { Input } from './components/ui/input';
 import { KeyboardShortcutsHelp } from './components/ui/KeyboardShortcutsHelp';
 import { blocksToTotalDuration, msToDisplay } from './utils/time';
+import { flattenBlocks } from './utils/loops';
 
 const SAVE_STATES = {
   dirty:        { label: 'Save',      bg: 'oklch(0.55 0.18 250)',          color: 'white',                    cursor: 'pointer' },
@@ -27,6 +28,7 @@ const SAVE_STATES = {
 export default function App() {
   const { saveNow, pullNow, resolveConflict } = useGistSync();
   const blocks = useStore((s) => s.blocks);
+  const loops = useStore((s) => s.loops);
   const addBlock = useStore((s) => s.addBlock);
   const setBlocks = useStore((s) => s.setBlocks);
   const resizeStep = useStore((s) => s.resizeStep);
@@ -70,7 +72,7 @@ export default function App() {
     onFitToScreen: () => timelineRef.current?.fitToScreen(),
   });
 
-  const totalSec = blocksToTotalDuration(blocks);
+  const totalSec = blocksToTotalDuration(flattenBlocks(blocks, loops));
 
   const savedBlocks = activeWorkoutName ? (workouts[activeWorkoutName]?.blocks ?? []) : [];
   const stripId = ({ id: _id, ...rest }) => rest;
