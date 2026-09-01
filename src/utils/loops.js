@@ -22,15 +22,14 @@ export function flattenBlocks(blocks, loops) {
 }
 
 export function revalidateLoops(blocks, loops) {
-  return loops.filter(loop => {
-    const si = blocks.findIndex(b => b.id === loop.startBlockId);
-    const ei = blocks.findIndex(b => b.id === loop.endBlockId);
-    if (si < 0 || ei < 0 || si > ei) return false;
-    // Reject if any block was moved in or out — the slice must be exactly blockIds in order
-    const current = blocks.slice(si, ei + 1).map(b => b.id);
-    return current.length === loop.blockIds.length &&
-           current.every((id, i) => id === loop.blockIds[i]);
-  });
+  return loops
+    .map(loop => {
+      const si = blocks.findIndex(b => b.id === loop.startBlockId);
+      const ei = blocks.findIndex(b => b.id === loop.endBlockId);
+      if (si < 0 || ei < 0 || si > ei) return null;
+      return { ...loop, blockIds: blocks.slice(si, ei + 1).map(b => b.id) };
+    })
+    .filter(Boolean);
 }
 
 export function loopsToRuntime(blocks, serializedLoops) {
