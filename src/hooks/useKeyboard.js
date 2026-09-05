@@ -59,7 +59,7 @@ export function useKeyboard({ onPlay, onPause, onStop, onRestart, onHelp, onSave
       } else if ((e.ctrlKey || e.metaKey) && key(e, 'l', 'KeyL')) {
         e.preventDefault();
         if (validateNewLoop(blocks, loops, selectedIds).ok) createLoop(selectedIds);
-      } else if ((e.ctrlKey || e.metaKey) && key(e, 'a', 'KeyA')) {
+      } else if ((e.ctrlKey || e.metaKey) && !e.shiftKey && key(e, 'a', 'KeyA')) {
         e.preventDefault(); selectAll();
       } else if ((e.ctrlKey || e.metaKey) && e.key === '0') {
         e.preventDefault(); onFitToScreen?.();
