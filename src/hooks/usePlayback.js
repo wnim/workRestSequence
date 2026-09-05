@@ -139,7 +139,7 @@ export function usePlayback() {
   const seek = useCallback((targetMs) => {
     const state = useStore.getState();
     if (state.playState === 'idle') return;
-    const total = state.blocks.reduce((s, b) => s + b.duration, 0) * 1000;
+    const total = flattenBlocks(state.blocks, state.loops).reduce((s, b) => s + b.duration, 0) * 1000;
     const clamped = Math.max(0, Math.min(targetMs, total));
     const now = Date.now();
     const newStart = now - clamped;
@@ -164,7 +164,8 @@ export function usePlayback() {
   }, [clearCues]);
 
   const scrubTo = useCallback((targetMs) => {
-    const total = useStore.getState().blocks.reduce((s, b) => s + b.duration, 0) * 1000;
+    const state = useStore.getState();
+    const total = flattenBlocks(state.blocks, state.loops).reduce((s, b) => s + b.duration, 0) * 1000;
     setCurrentPositionMs(Math.max(0, Math.min(targetMs, total)));
   }, []);
 
