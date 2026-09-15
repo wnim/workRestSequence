@@ -6,3 +6,7 @@ dist/
 
 # Local Netlify folder
 .netlify
+
+# Personal editor/tool config, not shared project config
+.vscode/
+.claude/settings.local.json
