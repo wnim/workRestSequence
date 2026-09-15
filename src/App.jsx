@@ -13,7 +13,7 @@ import { Button } from './components/ui/button';
 import { Input } from './components/ui/input';
 import { KeyboardShortcutsHelp } from './components/ui/KeyboardShortcutsHelp';
 import { blocksToTotalDuration, msToDisplay } from './utils/time';
-import { flattenBlocks } from './utils/loops';
+import { flattenBlocks, loopsToSerialized } from './utils/loops';
 
 const SAVE_STATES = {
   dirty:        { label: 'Save',      bg: 'oklch(0.55 0.18 250)',          color: 'white',                    cursor: 'pointer' },
@@ -75,8 +75,11 @@ export default function App() {
   const totalSec = blocksToTotalDuration(flattenBlocks(blocks, loops));
 
   const savedBlocks = activeWorkoutName ? (workouts[activeWorkoutName]?.blocks ?? []) : [];
+  const savedLoops = activeWorkoutName ? (workouts[activeWorkoutName]?.loops ?? []) : [];
   const stripId = ({ id: _id, ...rest }) => rest;
-  const hasLocalChanges = JSON.stringify(blocks.map(stripId)) !== JSON.stringify(savedBlocks.map(stripId));
+  const hasLocalChanges =
+    JSON.stringify(blocks.map(stripId)) !== JSON.stringify(savedBlocks.map(stripId)) ||
+    JSON.stringify(loopsToSerialized(blocks, loops)) !== JSON.stringify(savedLoops);
 
   useEffect(() => {
     if (!hasLocalChanges) return;
