@@ -3,6 +3,7 @@ import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { blockStartTime, getBlockBounds } from '../../utils/time';
 import { MULTI_DRAG_SCALE } from '../../utils/constants';
+import { withAlpha } from '../../utils/color';
 import { ResizeHandle } from './ResizeHandle';
 import useStore from '../../store/workoutStore';
 
@@ -90,7 +91,9 @@ export function BlockItem({ block, index, blocks, pxPerSecond, vertical, vertBlo
     inset: 0,
     borderRadius: 4,
     boxSizing: 'border-box',
-    background: isWork ? 'oklch(0.65 0.22 35 / 0.7)' : 'oklch(0.35 0.05 250 / 0.7)',
+    background: isWork
+      ? (block.color ? withAlpha(block.color, 0.7) : 'oklch(0.65 0.22 35 / 0.7)')
+      : 'oklch(0.35 0.05 250 / 0.7)',
     border: inLoopSelection ? '1px solid rgba(255,255,255,0.08)' : isSelected ? '2px solid oklch(0.75 0.15 200)' : '1px solid rgba(255,255,255,0.15)',
     opacity: (isDragging || isCompanion) ? 0.5 : 1,
     display: 'flex',

@@ -5,6 +5,7 @@ import { Button } from '../ui/button';
 import { Input } from '../ui/input';
 import { Label } from '../ui/label';
 import useStore from '../../store/workoutStore';
+import { DEFAULT_WORK_COLOR } from '../../utils/color';
 
 export function BlockEditModal({ blocks, onClose }) {
   const updateBlock = useStore((s) => s.updateBlock);
@@ -18,10 +19,16 @@ export function BlockEditModal({ blocks, onClose }) {
   const [labelLocked, setLabelLocked] = useState(isMulti);
   const [duration, setDuration] = useState(String(first.duration));
   const [type, setType] = useState(first.type);
+  const [color, setColor] = useState(first.color || DEFAULT_WORK_COLOR);
 
   function handleSave() {
     const dur = Math.max(0.1, Math.min(3600, parseFloat(duration) || first.duration));
-    const patch = { ...(isMulti && labelLocked ? {} : { label }), duration: dur, ...(!isMixed ? { type } : {}) };
+    const patch = {
+      ...(isMulti && labelLocked ? {} : { label }),
+      duration: dur,
+      ...(!isMixed ? { type } : {}),
+      ...(!isMixed && type === 'work' ? { color } : {}),
+    };
     if (isMulti) {
       updateBlocks(new Set(blocks.map((b) => b.id)), patch);
     } else {
@@ -74,6 +81,28 @@ export function BlockEditModal({ blocks, onClose }) {
               </Button>
             </div>
           </div>
+
+          {!isMixed && type === 'work' && (
+            <div>
+              <Label style={{ color: 'rgba(255,255,255,0.7)' }}>Color</Label>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 6 }}>
+                <input
+                  type="color"
+                  value={color}
+                  onChange={(e) => setColor(e.target.value)}
+                  style={{ width: 36, height: 32, padding: 0, border: '1px solid rgba(255,255,255,0.2)', borderRadius: 6, background: 'transparent', cursor: 'pointer' }}
+                />
+                {color !== DEFAULT_WORK_COLOR && (
+                  <button
+                    onClick={() => setColor(DEFAULT_WORK_COLOR)}
+                    style={{ background: 'none', border: 'none', color: 'rgba(255,255,255,0.5)', fontSize: 12, cursor: 'pointer', textDecoration: 'underline', padding: 0 }}
+                  >
+                    Reset to default
+                  </button>
+                )}
+              </div>
+            </div>
+          )}
 
           <div>
             <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>

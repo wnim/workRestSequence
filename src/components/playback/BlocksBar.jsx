@@ -1,11 +1,12 @@
 import { useRef, useEffect, useCallback, useState } from 'react';
 import { blocksToTotalDuration } from '../../utils/time';
+import { withAlpha } from '../../utils/color';
 
 function buildSegments(blocks) {
   const segs = [];
   let t = 0;
   for (const b of blocks) {
-    segs.push({ x: t, width: b.duration, type: b.type, label: b.label });
+    segs.push({ x: t, width: b.duration, type: b.type, label: b.label, color: b.color });
     t += b.duration;
   }
   return segs;
@@ -109,7 +110,7 @@ export function BlocksBar({ blocks, currentPositionMs, onScrubStart, onScrubMove
               <rect
                 x={seg.x} y={BAR_TOP}
                 width={seg.width} height={barH}
-                fill={isWork ? 'rgba(220,95,40,0.28)' : 'rgba(90,130,210,0.18)'}
+                fill={isWork ? (seg.color ? withAlpha(seg.color, 0.28) : 'rgba(220,95,40,0.28)') : 'rgba(90,130,210,0.18)'}
                 rx={0}
               />
               {/* Played portion */}
@@ -118,7 +119,7 @@ export function BlocksBar({ blocks, currentPositionMs, onScrubStart, onScrubMove
                   x={seg.x} y={BAR_TOP}
                   width={fullyPlayed ? seg.width : seg.width * partialFrac}
                   height={barH}
-                  fill={isWork ? 'rgba(235,105,45,0.88)' : 'rgba(110,155,235,0.6)'}
+                  fill={isWork ? (seg.color ? withAlpha(seg.color, 0.88) : 'rgba(235,105,45,0.88)') : 'rgba(110,155,235,0.6)'}
                 />
               )}
             </g>
