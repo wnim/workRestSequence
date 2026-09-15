@@ -43,7 +43,7 @@ describe('addBlock', () => {
   it('pushes to past history', () => {
     useStore.getState().addBlock('work');
     expect(useStore.getState().getHistory().past).toHaveLength(1);
-    expect(useStore.getState().getHistory().past[0]).toEqual([]);
+    expect(useStore.getState().getHistory().past[0]).toEqual({ blocks: [], loops: [] });
   });
 
   it('clears future on add', () => {
@@ -98,7 +98,7 @@ describe('removeBlocks', () => {
   it('pushes current blocks to past', () => {
     useStore.getState().removeBlocks(new Set(['a']));
     expect(useStore.getState().getHistory().past).toHaveLength(1);
-    expect(useStore.getState().getHistory().past[0]).toHaveLength(3);
+    expect(useStore.getState().getHistory().past[0].blocks).toHaveLength(3);
   });
 });
 
@@ -388,7 +388,11 @@ describe('workout CRUD', () => {
     useStore.getState().saveWorkout('Morning');
     useStore.getState().addBlock('work');
     useStore.getState().loadWorkout('Morning');
-    expect(useStore.getState().blocks).toEqual(blocks);
+    const loaded = useStore.getState().blocks;
+    // loadWorkout intentionally assigns fresh ids so re-loading the same
+    // workout never collides with previously loaded block/loop references.
+    expect(loaded.map(({ id, ...rest }) => rest)).toEqual(blocks.map(({ id, ...rest }) => rest));
+    expect(loaded.every((b) => typeof b.id === 'string')).toBe(true);
     expect(useStore.getState().getHistory().past).toHaveLength(0);
     expect(useStore.getState().activeWorkoutName).toBe('Morning');
   });
