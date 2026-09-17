@@ -6,8 +6,8 @@ import useStore from '../../store/workoutStore';
 import { loopsToSerialized, loopsToRuntime } from '../../utils/loops';
 
 function workoutToCode(blocks, loops) {
-  const strippedBlocks = blocks.map(({ type, duration, label }) => ({
-    type, duration, ...(label ? { label } : {}),
+  const strippedBlocks = blocks.map(({ type, duration, label, color }) => ({
+    type, duration, ...(label ? { label } : {}), ...(type === 'work' && color ? { color } : {}),
   }));
   const serializedLoops = loopsToSerialized(blocks, loops);
   const obj = serializedLoops.length > 0
@@ -33,7 +33,7 @@ function parseWorkout(text) {
     if (b.type !== 'work' && b.type !== 'rest') throw new Error(`Block ${i}: invalid type "${b.type}" — must be "work" or "rest"`);
     const duration = Number(b.duration);
     if (!Number.isFinite(duration) || duration <= 0) throw new Error(`Block ${i}: invalid duration "${b.duration}"`);
-    return { id: uuid(), type: b.type, duration, label: b.label ?? '' };
+    return { id: uuid(), type: b.type, duration, label: b.label ?? '', ...(b.type === 'work' && b.color ? { color: b.color } : {}) };
   });
 
   const serializedLoops = (Array.isArray(rawLoops) ? rawLoops : []).map((l, i) => {
