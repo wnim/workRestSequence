@@ -14,3 +14,10 @@ export function withAlpha(hex, alpha) {
   const [r, g, b] = hexToRgb(hex);
   return `rgba(${r}, ${g}, ${b}, ${alpha})`;
 }
+
+// A block's color counts as "customized" only if it differs from the
+// default — a block explicitly stamped with DEFAULT_WORK_COLOR must render
+// identically to one with no color field at all, everywhere it's drawn.
+export function customWorkColor(block) {
+  return block.type === 'work' && block.color && block.color !== DEFAULT_WORK_COLOR ? block.color : null;
+}

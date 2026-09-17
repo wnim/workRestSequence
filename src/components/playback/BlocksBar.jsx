@@ -1,12 +1,12 @@
 import { useRef, useEffect, useCallback, useState } from 'react';
 import { blocksToTotalDuration } from '../../utils/time';
-import { withAlpha } from '../../utils/color';
+import { withAlpha, customWorkColor } from '../../utils/color';
 
 function buildSegments(blocks) {
   const segs = [];
   let t = 0;
   for (const b of blocks) {
-    segs.push({ x: t, width: b.duration, type: b.type, label: b.label, color: b.color });
+    segs.push({ x: t, width: b.duration, type: b.type, label: b.label, color: customWorkColor(b) });
     t += b.duration;
   }
   return segs;

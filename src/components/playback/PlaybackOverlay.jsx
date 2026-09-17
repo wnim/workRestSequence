@@ -2,6 +2,7 @@ import { useMemo } from 'react';
 import { msToStopwatch, msToDisplay } from '../../utils/time';
 import useStore from '../../store/workoutStore';
 import { flattenBlocks } from '../../utils/loops';
+import { customWorkColor } from '../../utils/color';
 import { BlocksBar } from './BlocksBar';
 import { Button } from '../ui/button';
 
@@ -41,7 +42,7 @@ export function PlaybackOverlay({ playback }) {
     >
       {/* Cross-fade between work/rest backgrounds via opacity to avoid CSS hue interpolation
           traversing the wrong arc of the color wheel (hue 35° → 0° → 250° looks red mid-transition) */}
-      <div style={{ position: 'absolute', inset: 0, background: currentBlock?.color || 'oklch(0.45 0.22 35)', opacity: isWork ? 1 : 0, transition: 'opacity 300ms ease' }} />
+      <div style={{ position: 'absolute', inset: 0, background: (currentBlock && customWorkColor(currentBlock)) || 'oklch(0.45 0.22 35)', opacity: isWork ? 1 : 0, transition: 'opacity 300ms ease' }} />
       <div style={{ position: 'absolute', inset: 0, background: 'oklch(0.12 0.01 250)', opacity: isWork ? 0 : 1, transition: 'opacity 300ms ease' }} />
 
       {/* Content sits above the absolute backgrounds via z-index */}

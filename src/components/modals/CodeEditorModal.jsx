@@ -4,10 +4,11 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '../ui/dialog';
 import { Button } from '../ui/button';
 import useStore from '../../store/workoutStore';
 import { loopsToSerialized, loopsToRuntime } from '../../utils/loops';
+import { customWorkColor } from '../../utils/color';
 
 function workoutToCode(blocks, loops) {
-  const strippedBlocks = blocks.map(({ type, duration, label, color }) => ({
-    type, duration, ...(label ? { label } : {}), ...(type === 'work' && color ? { color } : {}),
+  const strippedBlocks = blocks.map((b) => ({
+    type: b.type, duration: b.duration, ...(b.label ? { label: b.label } : {}), ...(customWorkColor(b) ? { color: b.color } : {}),
   }));
   const serializedLoops = loopsToSerialized(blocks, loops);
   const obj = serializedLoops.length > 0

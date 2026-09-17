@@ -20,6 +20,7 @@ export function BlockEditModal({ blocks, onClose }) {
   const [duration, setDuration] = useState(String(first.duration));
   const [type, setType] = useState(first.type);
   const [color, setColor] = useState(first.color || DEFAULT_WORK_COLOR);
+  const [colorTouched, setColorTouched] = useState(false);
 
   function handleSave() {
     const dur = Math.max(0.1, Math.min(3600, parseFloat(duration) || first.duration));
@@ -27,7 +28,10 @@ export function BlockEditModal({ blocks, onClose }) {
       ...(isMulti && labelLocked ? {} : { label }),
       duration: dur,
       ...(!isMixed ? { type } : {}),
-      ...(!isMixed && type === 'work' ? { color } : {}),
+      // Only touch color when the user actually interacted with the picker —
+      // otherwise an unrelated duration/label edit would silently stamp
+      // every selected block with whichever color happened to be shown.
+      ...(!isMixed && type === 'work' && colorTouched ? { color } : {}),
     };
     if (isMulti) {
       updateBlocks(new Set(blocks.map((b) => b.id)), patch);
@@ -89,13 +93,13 @@ export function BlockEditModal({ blocks, onClose }) {
                 <input
                   type="color"
                   value={color}
-                  onChange={(e) => setColor(e.target.value)}
+                  onChange={(e) => { setColor(e.target.value); setColorTouched(true); }}
                   style={{ width: 36, height: 32, padding: 0, border: '1px solid rgba(255,255,255,0.2)', borderRadius: 6, background: 'transparent', cursor: 'pointer' }}
                 />
                 <Button
                   variant="outline"
                   disabled={color === DEFAULT_WORK_COLOR}
-                  onClick={() => setColor(DEFAULT_WORK_COLOR)}
+                  onClick={() => { setColor(DEFAULT_WORK_COLOR); setColorTouched(true); }}
                   style={{ background: 'transparent', borderColor: 'rgba(255,255,255,0.2)', color: 'white', fontSize: 12, height: 32, padding: '0 10px' }}
                 >
                   Reset to default
