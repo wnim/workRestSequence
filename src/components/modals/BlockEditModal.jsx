@@ -92,14 +92,14 @@ export function BlockEditModal({ blocks, onClose }) {
                   onChange={(e) => setColor(e.target.value)}
                   style={{ width: 36, height: 32, padding: 0, border: '1px solid rgba(255,255,255,0.2)', borderRadius: 6, background: 'transparent', cursor: 'pointer' }}
                 />
-                {color !== DEFAULT_WORK_COLOR && (
-                  <button
-                    onClick={() => setColor(DEFAULT_WORK_COLOR)}
-                    style={{ background: 'none', border: 'none', color: 'rgba(255,255,255,0.5)', fontSize: 12, cursor: 'pointer', textDecoration: 'underline', padding: 0 }}
-                  >
-                    Reset to default
-                  </button>
-                )}
+                <Button
+                  variant="outline"
+                  disabled={color === DEFAULT_WORK_COLOR}
+                  onClick={() => setColor(DEFAULT_WORK_COLOR)}
+                  style={{ background: 'transparent', borderColor: 'rgba(255,255,255,0.2)', color: 'white', fontSize: 12, height: 32, padding: '0 10px' }}
+                >
+                  Reset to default
+                </Button>
               </div>
             </div>
           )}
